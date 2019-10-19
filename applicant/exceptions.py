@@ -1,0 +1,2 @@
+class NoMessageFromPolice(Exception):
+    pass
