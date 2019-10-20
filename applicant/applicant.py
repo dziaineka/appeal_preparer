@@ -11,21 +11,18 @@ import time
 class Applicant:
     def __init__(self, address: str = config.EMAIL):
         self.address = address
+        self.mailbox = Mailbox()
+        self.browser = None
+
+    def _get_browser(self):
         chrome_options = Options()
 
         chrome_options.add_argument("--disable-extensions")
-        chrome_options.add_argument("--disable-gpu")
         chrome_options.add_argument("--headless")
         chrome_options.add_argument("--window-size=1080,1920")
-
         self.browser = webdriver.Chrome(options=chrome_options)
         # self.browser = webdriver.Chrome()
-
         self.browser.implicitly_wait(20)  # seconds
-        self.mailbox = Mailbox()
-
-    def __del__(self):
-        self.browser.quit()
 
     def make_visible(self, element) -> None:
         # returns dict of X, Y coordinates
@@ -77,6 +74,8 @@ class Applicant:
         submit_status = self._extract_status_captcha(
             self.browser.find_element_by_xpath('//div[@id="info-message"]/p'))
 
+        self.browser.quit()
+
         if submit_status == config.WRONG_INPUT:
             return config.WRONG_INPUT
         elif submit_status != config.OK:
@@ -97,11 +96,12 @@ class Applicant:
         self.make_visible(rules_acception)
         rules_acception.click()
 
-    def get_appeal_url(self) -> str:
-        return self.mailbox.get_appeal_url()
+    def get_appeal_url(self, email: str) -> str:
+        return self.mailbox.get_appeal_url(email)
 
     @wait_decorator(ElementClickInterceptedException)
     def get_captcha(self) -> str:
+        self._get_browser()
         self._get_captcha_site()
         return self._upload_captcha()
 
@@ -119,6 +119,7 @@ class Applicant:
     @wait_decorator(ElementClickInterceptedException)
     def send_appeal(self, data: dict, url: str) -> tuple:
         try:
+            self._get_browser()
             self.browser.get(url)
 
             last_name_field = self.browser.find_element_by_xpath(
@@ -204,5 +205,7 @@ class Applicant:
                 return config.FAIL, infobox.text
         except Exception as exc:
             return config.FAIL, str(exc)
+        finally:
+            self.browser.quit()
 
         return config.OK, ''

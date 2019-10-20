@@ -4,7 +4,7 @@ RABBIT_LOGIN = 'appeal_preparer'
 RABBIT_PASSWORD = 'appeal_preparer'
 RABBIT_ADDRESS = f'http://{RABBIT_LOGIN}:{RABBIT_PASSWORD}@localhost:15672'
 RABBIT_EXCHANGE_APPEAL = 'appeal'
-RABBIT_ROUTING_CAPTCHA_PIC = 'captcha_pic'
+RABBIT_ROUTING_TO_BOT = 'to_bot'
 RABBIT_ROUTING_STATUS = 'appeal_status'
 RABBIT_ROUTING_APPEAL_URL = 'appeal_url'
 
@@ -13,9 +13,13 @@ OK = 'ok'
 FAIL = 'fail'
 WRONG_INPUT = 'wrong_input'
 CAPTCHA = 'captcha'
+CAPTCHA_URL = 'captcha_url'
+CAPTCHA_OK = 'captcha_ok'
+CAPTCHA_FAIL = 'captcha_fail'
 
 # message types
-CAPTCHA = 'captcha'
+CAPTCHA_TEXT = 'captcha_text'
+GET_CAPTCHA = 'get_captcha'
 APPEAL = 'appeal'
 
 EMAILS = [

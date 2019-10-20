@@ -13,11 +13,10 @@ from rabbit import Rabbit
 
 class Preparer:
     def __init__(self, email: str) -> None:
-        self.current_captcha_url = ''
         self.logger = self.setup_logging()
         self.applicant = Applicant(address=email)
         self.queue = Rabbit()
-        self.saved_appeal = {}
+        self.queue_name = email
 
     def start(self):
         connection = pika.BlockingConnection(
@@ -30,9 +29,6 @@ class Preparer:
                 retry_delay=2))
 
         channel = connection.channel()
-
-        self.queue_name = \
-            f'captcha_text_{str(random.randint(1000000, 9999999))}'
 
         channel.queue_declare(queue=self.queue_name,
                               durable=True,
@@ -47,7 +43,7 @@ class Preparer:
         channel.basic_consume(queue=self.queue_name,
                               on_message_callback=self.callback)
 
-        self.current_captcha_url = self.put_capcha_to_queue()
+        self.queue.send_queue_name(self.queue_name)
         self.logger.info(' [*] Waiting for messages. To exit press CTRL+C')
         channel.start_consuming()
 
@@ -70,28 +66,35 @@ class Preparer:
 
         return my_logger
 
-    def process_data(self, method, data: dict) -> None:
-        captcha_text = data['captcha_text']
-        captcha_url = data['captcha_url']
-
-        if captcha_url != self.current_captcha_url:
-            raise CaptchaInputError()
-
+    def process_captcha(self,
+                        captcha_text: str,
+                        user_id: int,
+                        appeal_id: int) -> None:
         if self.applicant.enter_captcha_and_submit(captcha_text) != config.OK:
             raise CaptchaInputError()
 
-        appeal_url = self.applicant.get_appeal_url()
-        self.process_appeal(method, data, appeal_url)
+        self.queue.send_status(user_id,
+                               config.CAPTCHA_OK,
+                               self.queue_name,
+                               appeal_id)
 
-    def process_appeal(self, method, data: dict, url: str) -> None:
-        status_code, message = self.applicant.send_appeal(data, url)
+    def process_appeal(self, method, data: dict) -> None:
+        url = self.applicant.get_appeal_url(self.queue_name)
+        status_code, message = self.applicant.send_appeal(data['appeal'], url)
 
         if status_code != config.OK:
             raise ErrorWhileSending(message)
 
-        self.queue.send_status(
-            data['user_id'], status_code, self.queue_name, message)
-        self.current_captcha_url = self.put_capcha_to_queue()
+        self.queue.send_status(data['user_id'],
+                               status_code,
+                               self.queue_name,
+                               data['appeal_id'],
+                               message)
+
+        self.queue.send_queue_name(self.queue_name)
+
+    def send_captcha(self, appeal_id: int, user_id: int) -> None:
+        self.current_captcha_url = self.put_capcha_to_queue(appeal_id, user_id)
 
     def callback(self, ch, method, properties, body: str) -> None:
         data = json.loads(body)
@@ -99,36 +102,29 @@ class Preparer:
 
         try:
             if data['type'] == config.APPEAL:
-                self.process_data(method, data)
-            elif data['type'] == config.CAPTCHA:
-                self.saved_appeal['captcha_text'] = data['captcha_text']
-                self.saved_appeal['captcha_url'] = data['captcha_url']
-                self.process_data(method, self.saved_appeal)
+                self.process_appeal(method, data)
+            elif data['type'] == config.CAPTCHA_TEXT:
+                self.process_captcha(data['captcha_text'],
+                                     data['user_id'],
+                                     data['appeal_id'])
+            elif data['type'] == config.GET_CAPTCHA:
+                self.send_captcha(data['appeal_id'], data['user_id'])
         except CaptchaInputError:
             self.logger.info("Фейл капчи")
-            self.current_captcha_url = self.put_capcha_to_queue()
-            self.queue.send_status(
-                data['user_id'], config.CAPTCHA, self.queue_name)
-            self.saved_appeal = data
+            self.send_captcha(data['appeal_id'], data['user_id'])
         except NoMessageFromPolice:
             self.logger.info("Фейл почты")
-            self.current_captcha_url = self.put_capcha_to_queue()
-            self.queue.send_status(
-                data['user_id'], config.CAPTCHA, self.queue_name)
-            self.saved_appeal = data
+            self.send_captcha(data['appeal_id'], data['user_id'])
         except ErrorWhileSending:
             self.logger.info("Фейл почты")
-            self.current_captcha_url = self.put_capcha_to_queue()
-            self.queue.send_status(
-                data['user_id'], config.CAPTCHA, self.queue_name)
-            self.saved_appeal = data
+            self.send_captcha(data['appeal_id'], data['user_id'])
 
         ch.basic_ack(delivery_tag=method.delivery_tag)
         self.logger.info(' [*] Waiting for messages. To exit press CTRL+C')
 
-    def put_capcha_to_queue(self) -> str:
+    def put_capcha_to_queue(self, appeal_id: int, user_id: int) -> str:
         url = self.applicant.get_captcha()
-        self.queue.send_captcha_url(url, self.queue_name)
+        self.queue.send_captcha_url(url, appeal_id, user_id)
         return url
 
 

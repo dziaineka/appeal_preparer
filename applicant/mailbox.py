@@ -24,20 +24,22 @@ class Mailbox:
         except IndexError:
             return ''
 
-    def _get_messages(self) -> tuple:
-        unseen_messages = self.server.search([u'UNSEEN'])
+    def _get_messages(self, email: str) -> tuple:
+        unseen_messages = self.server.search([u'UNSEEN', u'TEXT', email])
         raw_message = self.server.fetch(unseen_messages, ['BODY[]', 'FLAGS'])
         msg_num = unseen_messages[0]
         return msg_num, raw_message
 
-    def get_appeal_url(self) -> str:
+    def get_appeal_url(self, email: str) -> str:
         try:
             msg_num, raw_message = waiter.wait(IndexError,
                                                self._get_messages,
-                                               pause=2)
+                                               2,
+                                               email)
         except IndexError:
-            raise NoMessageFromPolice(
-                'На почте не найдено письма от МВД.')
+            raise NoMessageFromPolice('На почте не найдено письма от МВД.')
+        except ConnectionResetError or BrokenPipeError:
+            raise NoMessageFromPolice('Ошибка при подключении к ящику.')
 
         message = pyzmail.PyzMessage.factory(raw_message[msg_num][b'BODY[]'])
         charset = message.html_part.charset
