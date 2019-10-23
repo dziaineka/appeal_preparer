@@ -14,6 +14,12 @@ class Applicant:
         self.mailbox = Mailbox()
         self.browser = None
 
+    def cancel(self):
+        try:
+            self.browser.quit()
+        except:
+            pass
+
     def _get_browser(self):
         chrome_options = Options()
 

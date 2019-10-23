@@ -109,6 +109,10 @@ class Preparer:
                                      data['appeal_id'])
             elif data['type'] == config.GET_CAPTCHA:
                 self.send_captcha(data['appeal_id'], data['user_id'])
+            elif data['type'] == config.CANCEL:
+                self.logger.info("Отмена")
+                self.applicant.cancel()
+                self.queue.send_queue_name(self.queue_name)
         except CaptchaInputError:
             self.logger.info("Фейл капчи")
             self.send_captcha(data['appeal_id'], data['user_id'])

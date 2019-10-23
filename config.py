@@ -21,6 +21,7 @@ CAPTCHA_FAIL = 'captcha_fail'
 CAPTCHA_TEXT = 'captcha_text'
 GET_CAPTCHA = 'get_captcha'
 APPEAL = 'appeal'
+CANCEL = 'cancel'
 
 EMAILS = [
     'mail1@example.com',
