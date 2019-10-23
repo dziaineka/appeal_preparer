@@ -134,4 +134,8 @@ class Preparer:
 
 def start(email: str):
     preparer = Preparer(email)
-    preparer.start()
+    try:
+        preparer.start()
+    except:
+        print('Some fail')
+        preparer.start()
