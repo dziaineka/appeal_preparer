@@ -5,6 +5,7 @@ import applicant.waiter as waiter
 import applicant.config as config
 from imapclient import IMAPClient
 from applicant.exceptions import NoMessageFromPolice
+from contextlib import contextmanager
 
 
 class Mailbox:
@@ -13,9 +14,17 @@ class Mailbox:
             regexps.appeal_url,
             re.MULTILINE | re.IGNORECASE | re.VERBOSE)
 
-        self.server = IMAPClient(config.IMAP_SERVER, use_uid=True, ssl=True)
-        self.server.login(config.EMAIL, config.PWD)
-        self.server.select_folder('Appeals')
+    @contextmanager
+    def imap(self, *args, **kwds):
+        # Code to acquire resource, e.g.:
+        server = IMAPClient(config.IMAP_SERVER, use_uid=True, ssl=True)
+        server.login(config.EMAIL, config.PWD)
+        server.select_folder('Appeals')
+
+        try:
+            yield server
+        finally:
+            server.logout()
 
     def _extract_appeal_url(self, html: str) -> str:
         urls = self.re_appeal_url.findall(html)
@@ -25,8 +34,15 @@ class Mailbox:
             return ''
 
     def _get_messages(self, email: str) -> tuple:
-        unseen_messages = self.server.search([u'UNSEEN', u'TEXT', email])
-        raw_message = self.server.fetch(unseen_messages, ['BODY[]', 'FLAGS'])
+        try:
+            with self.imap() as client:
+                unseen_messages = client.search([u'UNSEEN', u'TEXT', email])
+
+                raw_message = client.fetch(unseen_messages,
+                                           ['BODY[]', 'FLAGS'])
+        except ConnectionResetError or BrokenPipeError:
+            self._get_messages(email)
+
         msg_num = unseen_messages[0]
         return msg_num, raw_message
 
@@ -38,8 +54,6 @@ class Mailbox:
                                                email)
         except IndexError:
             raise NoMessageFromPolice('На почте не найдено письма от МВД.')
-        except ConnectionResetError or BrokenPipeError:
-            raise NoMessageFromPolice('Ошибка при подключении к ящику.')
 
         message = pyzmail.PyzMessage.factory(raw_message[msg_num][b'BODY[]'])
         charset = message.html_part.charset
