@@ -9,10 +9,12 @@ import time
 
 
 class Applicant:
-    def __init__(self, address: str = config.EMAIL):
+    def __init__(self, logger, address: str = config.EMAIL):
+
         self.address = address
         self.mailbox = Mailbox()
         self.browser = None
+        self.logger = logger
 
     def cancel(self):
         try:
@@ -112,15 +114,15 @@ class Applicant:
         return self._upload_captcha()
 
     @wait_decorator(ElementClickInterceptedException)
-    def request_appeal_url(self) -> str:
+    def request_appeal_url(self, email: str) -> str:
         self._get_captcha_site()
 
         captcha = input("Captcha: ")
 
         if self.enter_captcha_and_submit(captcha) != config.OK:
-            self.request_appeal_url()
+            self.request_appeal_url(email)
 
-        return self.mailbox.get_appeal_url()
+        return self.mailbox.get_appeal_url(email)
 
     @wait_decorator(ElementClickInterceptedException)
     def send_appeal(self, data: dict, url: str) -> tuple:
@@ -128,21 +130,29 @@ class Applicant:
             self._get_browser()
             self.browser.get(url)
 
+            self.logger.info("Получили браузер")
+
             last_name_field = self.browser.find_element_by_xpath(
                 '//input[@data-ng-model="appeal.last_name"]')
 
             self.make_visible(last_name_field)
             last_name_field.send_keys(data['sender_last_name'])
 
+            self.logger.info("Ввели фамилию")
+
             first_name_field = self.browser.find_element_by_xpath(
                 '//input[@data-ng-model="appeal.first_name"]')
             self.make_visible(first_name_field)
             first_name_field.send_keys(data['sender_first_name'])
 
+            self.logger.info("Ввели имя")
+
             patronymic_name_field = self.browser.find_element_by_xpath(
                 '//input[@ng-model="appeal.middle_name"]')
             self.make_visible(patronymic_name_field)
             patronymic_name_field.send_keys(data['sender_patronymic'])
+
+            self.logger.info("Ввели отчество")
 
             recipient_select_field = self.browser.find_element_by_xpath(
                 '//md-select[@ng-model="appeal.division"]')
@@ -158,40 +168,56 @@ class Applicant:
             self.make_visible(division)
             division.click()
 
+            self.logger.info("Выбрали отдел ГУВД")
+
             zipcode = self.browser.find_element_by_xpath(
                 '//input[@ng-model="appeal.postal_code"]')
             self.make_visible(zipcode)
             zipcode.send_keys(data['sender_zipcode'])
+
+            self.logger.info("Ввели индекс")
 
             city = self.browser.find_element_by_xpath(
                 '//input[@ng-model="appeal.city"]')
             self.make_visible(city)
             city.send_keys(data['sender_city'])
 
+            self.logger.info("Ввели город")
+
             street = self.browser.find_element_by_xpath(
                 '//input[@ng-model="appeal.street"]')
             self.make_visible(street)
             street.send_keys(data['sender_street'])
+
+            self.logger.info("Ввели улицу")
 
             building = self.browser.find_element_by_xpath(
                 '//input[@ng-model="appeal.house"]')
             self.make_visible(building)
             building.send_keys(data['sender_house'])
 
+            self.logger.info("Ввели дом")
+
             block = self.browser.find_element_by_xpath(
                 '//input[@ng-model="appeal.korpus"]')
             self.make_visible(block)
             block.send_keys(data['sender_block'])
+
+            self.logger.info("Ввели корпус")
 
             flat = self.browser.find_element_by_xpath(
                 '//input[@ng-model="appeal.flat"]')
             self.make_visible(flat)
             flat.send_keys(data['sender_flat'])
 
+            self.logger.info("Ввели квартиру")
+
             text = self.browser.find_element_by_xpath(
                 '//textarea[@ng-model="appeal.text"]')
             self.make_visible(text)
             text.send_keys(data['text'])
+
+            self.logger.info("Ввели текст")
 
             submit_button = self.browser.find_element_by_xpath(
                 '//div[@class="col-sm-6 text-center"]/' +
@@ -199,6 +225,8 @@ class Applicant:
 
             self.make_visible(submit_button)
             submit_button.click()
+
+            self.logger.info("Отправили")
 
             time.sleep(1)
 

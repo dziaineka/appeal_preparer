@@ -1,7 +1,6 @@
 from applicant.exceptions import *
 from exceptions import *
 import logging
-import random
 import json
 
 import pika
@@ -14,7 +13,7 @@ from rabbit import Rabbit
 class Preparer:
     def __init__(self, email: str) -> None:
         self.logger = self.setup_logging()
-        self.applicant = Applicant(address=email)
+        self.applicant = Applicant(self.logger, address=email)
         self.queue = Rabbit()
         self.queue_name = email
 
