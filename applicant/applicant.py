@@ -112,9 +112,8 @@ class Applicant:
 
     def _fill_field(self, field, text):
         try:
-            field.click()
             clipboard.copy(text)
-            field.sendKeys(Keys.chord(Keys.CONTROL, "v"))
+            field.send_keys(Keys.CONTROL, "v")
         except PyperclipException:
             field.send_keys(text)
         finally:
@@ -122,6 +121,7 @@ class Applicant:
 
     @wait_decorator(ElementClickInterceptedException)
     def get_captcha(self) -> str:
+        self.cancel()
         self._get_browser()
         self._get_captcha_site()
         return self._upload_captcha()
@@ -255,4 +255,5 @@ class Applicant:
         finally:
             self.browser.quit()
 
+        self.logger.info("Успех")
         return config.OK, ''
