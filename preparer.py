@@ -31,7 +31,7 @@ class Preparer:
 
         channel.queue_declare(queue=self.queue_name,
                               durable=True,
-                              auto_delete=True)
+                              auto_delete=False)
 
         channel.queue_bind(queue=self.queue_name,
                            exchange=config.RABBIT_EXCHANGE_APPEAL,
@@ -132,9 +132,9 @@ class Preparer:
 
 
 def start(email: str):
-    preparer = Preparer(email)
     try:
+        preparer = Preparer(email)
         preparer.start()
     except:
         print('Some fail')
-        preparer.start()
+        start(email)
