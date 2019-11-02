@@ -6,7 +6,8 @@ def wait(exception, function: Callable, pause=0, *args) -> Any:
     for attempt in range(10):
         try:
             return function(*args)
-        except exception:
+        except exception as exc:
+            print(f'ОЙ wait - {str(exc)}')
             time.sleep(pause)
             continue
 

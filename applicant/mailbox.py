@@ -9,10 +9,12 @@ from contextlib import contextmanager
 
 
 class Mailbox:
-    def __init__(self):
+    def __init__(self, logger):
         self.re_appeal_url = re.compile(
             regexps.appeal_url,
             re.MULTILINE | re.IGNORECASE | re.VERBOSE)
+
+        self.logger = logger
 
     @contextmanager
     def imap(self, *args, **kwds):
@@ -30,7 +32,9 @@ class Mailbox:
         urls = self.re_appeal_url.findall(html)
         try:
             return urls[0][0].replace('amp;', '')
-        except IndexError:
+        except IndexError as exc:
+            self.logger.info(f'ОЙ _extract_appeal_url - {str(exc)}')
+            self.logger.exception(exc)
             return ''
 
     def _get_messages(self, email: str) -> tuple:
@@ -40,7 +44,9 @@ class Mailbox:
 
                 raw_message = client.fetch(unseen_messages,
                                            ['BODY[]', 'FLAGS'])
-        except ConnectionResetError or BrokenPipeError:
+        except ConnectionResetError or BrokenPipeError as exc:
+            self.logger.info(f'ОЙ _get_messages - {str(exc)}')
+            self.logger.exception(exc)
             self._get_messages(email)
 
         msg_num = unseen_messages[0]
@@ -52,7 +58,9 @@ class Mailbox:
                                                self._get_messages,
                                                2,
                                                email)
-        except IndexError:
+        except IndexError as exc:
+            self.logger.info(f'ОЙ get_appeal_url - {str(exc)}')
+            self.logger.exception(exc)
             raise NoMessageFromPolice('На почте не найдено письма от МВД.')
 
         message = pyzmail.PyzMessage.factory(raw_message[msg_num][b'BODY[]'])

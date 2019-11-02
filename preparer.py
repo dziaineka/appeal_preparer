@@ -2,6 +2,7 @@ from applicant.exceptions import *
 from exceptions import *
 import logging
 import json
+import time
 
 import pika
 
@@ -12,13 +13,13 @@ from rabbit import Rabbit
 
 class Preparer:
     def __init__(self, email: str) -> None:
+        self.queue_name = email
         self.logger = self.setup_logging()
         self.applicant = Applicant(self.logger, address=email)
         self.queue = Rabbit()
-        self.queue_name = email
 
     def start(self):
-        connection = pika.BlockingConnection(
+        self.connection = pika.BlockingConnection(
             pika.ConnectionParameters(
                 host=config.RABBIT_HOST,
                 credentials=pika.credentials.PlainCredentials(
@@ -27,29 +28,38 @@ class Preparer:
                 connection_attempts=10,
                 retry_delay=2))
 
-        channel = connection.channel()
+        self.channel = self.connection.channel()
 
-        channel.queue_declare(queue=self.queue_name,
-                              durable=True,
-                              auto_delete=False)
+        self.channel.queue_declare(queue=self.queue_name,
+                                   durable=True,
+                                   auto_delete=False)
 
-        channel.queue_bind(queue=self.queue_name,
-                           exchange=config.RABBIT_EXCHANGE_APPEAL,
-                           routing_key=self.queue_name)
+        self.channel.queue_bind(queue=self.queue_name,
+                                exchange=config.RABBIT_EXCHANGE_APPEAL,
+                                routing_key=self.queue_name)
 
-        channel.basic_qos(prefetch_count=1)
+        self.channel.basic_qos(prefetch_count=1)
 
-        channel.basic_consume(queue=self.queue_name,
-                              on_message_callback=self.callback)
+        self.channel.basic_consume(queue=self.queue_name,
+                                   consumer_tag=self.queue_name,
+                                   on_message_callback=self.callback)
 
         self.queue.send_queue_name(self.queue_name)
-        self.logger.info(' [*] Waiting for messages. To exit press CTRL+C')
-        channel.start_consuming()
+        self.logger.info('Стартанули')
+        self.channel.start_consuming()
+
+    def stop(self):
+        self.logger.info('Суецыд')
+        self.applicant.cancel()
+        self.channel.close()
+        self.connection.close()
 
     def setup_logging(self):
         # create logger
-        my_logger = logging.getLogger('appeal_preparer')
-        my_logger.setLevel(logging.DEBUG)
+        logger = logging.getLogger('appeal_preparer')
+        logger.setLevel(logging.DEBUG)
+
+        extra = {'queue': self.queue_name}
 
         # create console handler with a higher log level
         ch = logging.StreamHandler()
@@ -57,13 +67,14 @@ class Preparer:
 
         # create formatter and add it to the handlers
         formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+            '%(asctime)s - %(queue)s - %(levelname)s - %(message)s')
         ch.setFormatter(formatter)
 
         # add the handlers to the logger
-        my_logger.addHandler(ch)
+        logger.addHandler(ch)
+        logger = logging.LoggerAdapter(logger, extra)
 
-        return my_logger
+        return logger
 
     def process_captcha(self,
                         captcha_text: str,
@@ -121,9 +132,12 @@ class Preparer:
         except ErrorWhileSending:
             self.logger.info("Фейл почты")
             self.send_captcha(data['appeal_id'], data['user_id'])
+        except BrowserError:
+            self.logger.info("Фейл браузинга")
+            self.send_captcha(data['appeal_id'], data['user_id'])
 
         ch.basic_ack(delivery_tag=method.delivery_tag)
-        self.logger.info(' [*] Waiting for messages. To exit press CTRL+C')
+        self.logger.info('Обработали, ждем новенького')
 
     def put_capcha_to_queue(self, appeal_id: int, user_id: int) -> str:
         url = self.applicant.get_captcha()
@@ -131,10 +145,17 @@ class Preparer:
         return url
 
 
+def run_consuming(preparer):
+    while True:
+        try:
+            preparer.start()
+        except Exception as exc:
+            preparer.logger.info(f'ОЙ start - {str(exc)}')
+            preparer.logger.exception(exc)
+            preparer.stop()
+            time.sleep(2)
+
+
 def start(email: str):
-    try:
-        preparer = Preparer(email)
-        preparer.start()
-    except:
-        print('Some fail')
-        start(email)
+    preparer = Preparer(email)
+    run_consuming(preparer)
