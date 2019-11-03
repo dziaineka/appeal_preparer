@@ -23,12 +23,15 @@ class Rabbit:
             raise ErrorWhilePutInQueue(
                 f'Ошибка при отправке урл в очередь: {response.reason}')
 
-    def send_captcha_url(self, url: str, appeal_id: int, user_id: int) -> None:
+    def send_captcha_url(self, url: str,
+                         appeal_id, user_id: int,
+                         answer_queue: str) -> None:
         data = {
             'type': config.CAPTCHA_URL,
             'captcha': url,
             'appeal_id': appeal_id,
             'user_id': user_id,
+            'answer_queue': answer_queue,
         }
 
         self._send(config.RABBIT_EXCHANGE_APPEAL,
@@ -61,8 +64,3 @@ class Rabbit:
         self._send(config.RABBIT_EXCHANGE_APPEAL,
                    config.RABBIT_ROUTING_STATUS,
                    status)
-
-    def send_appeal_url(self, url: str) -> None:
-        self._send(config.RABBIT_EXCHANGE_APPEAL,
-                   config.RABBIT_ROUTING_APPEAL_URL,
-                   {'appeal_url': url})

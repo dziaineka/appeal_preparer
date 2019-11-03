@@ -141,7 +141,7 @@ class Preparer:
 
     def put_capcha_to_queue(self, appeal_id: int, user_id: int) -> str:
         url = self.applicant.get_captcha()
-        self.queue.send_captcha_url(url, appeal_id, user_id)
+        self.queue.send_captcha_url(url, appeal_id, user_id, self.queue_name)
         return url
 
 
