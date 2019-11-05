@@ -221,7 +221,6 @@ class Applicant:
             self._fill_field(patronymic_name_field, data['sender_patronymic'])
 
             self.logger.info("Ввели отчество")
-            time.sleep(1)
 
             recipient_select_field = self._get_element_by_xpath(
                 '//md-select[@ng-model="appeal.division"]')
