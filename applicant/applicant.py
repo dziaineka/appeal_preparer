@@ -221,6 +221,7 @@ class Applicant:
             self._fill_field(patronymic_name_field, data['sender_patronymic'])
 
             self.logger.info("Ввели отчество")
+            time.sleep(1)
 
             recipient_select_field = self._get_element_by_xpath(
                 '//md-select[@ng-model="appeal.division"]')
@@ -309,6 +310,11 @@ class Applicant:
 
             if submit_status != config.OK:
                 return config.FAIL, infobox.text
+        except ElementClickInterceptedException as exc:
+            self.browser.save_screenshot(
+                'ElementClickInterceptedException.png')
+
+            raise exc
         except Exception as exc:
             self.logger.info(f'ОЙ send_appeal - {str(exc)}')
             self.logger.exception(exc)
