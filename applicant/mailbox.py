@@ -18,7 +18,6 @@ class Mailbox:
 
     @contextmanager
     def imap(self, *args, **kwds):
-        # Code to acquire resource, e.g.:
         server = IMAPClient(config.IMAP_SERVER, use_uid=True, ssl=True)
         server.login(config.EMAIL, config.PWD)
         server.select_folder('Appeals')
@@ -40,7 +39,13 @@ class Mailbox:
     def _get_messages(self, email: str) -> tuple:
         try:
             with self.imap() as client:
-                unseen_messages = client.search([u'UNSEEN', u'TEXT', email])
+                unseen_messages = client.search(['TO', email, 'UNSEEN'])
+
+                if not unseen_messages:
+                    unseen_messages = client.search(['TEXT', email, 'UNSEEN'])
+
+                if not unseen_messages:
+                    unseen_messages = client.search(['UNSEEN'])
 
                 raw_message = client.fetch(unseen_messages,
                                            ['BODY[]', 'FLAGS'])
