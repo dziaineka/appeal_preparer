@@ -26,7 +26,8 @@ class Preparer:
                     config.RABBIT_LOGIN,
                     config.RABBIT_PASSWORD),
                 connection_attempts=10,
-                retry_delay=2))
+                retry_delay=2,
+                heartbeat=0))
 
         self.channel = self.connection.channel()
 
