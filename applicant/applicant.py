@@ -1,6 +1,5 @@
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import ElementClickInterceptedException
 from applicant.mailbox import Mailbox
 from applicant.waiter import wait_decorator
@@ -8,8 +7,6 @@ import requests
 import applicant.config as config
 from applicant.exceptions import *
 import time
-import clipboard
-from pyperclip import PyperclipException
 
 
 class Applicant:
@@ -135,13 +132,6 @@ class Applicant:
         self.logger.info('Заполняем поле')
         try:
             field.send_keys(text)
-
-            # clipboard.copy(text)
-            # self.logger.info(f'Сохранили текст "{clipboard.paste()}"')
-            # field.send_keys(Keys.CONTROL, "v")
-            # self.logger.info("Вставили")
-            # clipboard.copy('')
-            # time.sleep(1)
         except Exception as exc:
             self.logger.info(f'ОЙ _fill_field - {str(exc)}')
             self.logger.exception(exc)
