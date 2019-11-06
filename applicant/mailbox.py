@@ -54,7 +54,7 @@ class Mailbox:
             self.logger.exception(exc)
             self._get_messages(email)
 
-        msg_num = unseen_messages[0]
+        msg_num = unseen_messages[-1]
         return msg_num, raw_message
 
     def get_appeal_url(self, email: str) -> str:
