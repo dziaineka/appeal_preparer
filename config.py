@@ -23,6 +23,9 @@ GET_CAPTCHA = 'get_captcha'
 APPEAL = 'appeal'
 CANCEL = 'cancel'
 
+# appeals email
+EMAIL_PWD = "password"
+
 EMAILS = [
     'mail1@example.com',
     'mail2@example.com',

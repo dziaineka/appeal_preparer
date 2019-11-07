@@ -17,10 +17,9 @@ class Mailbox:
         self.logger = logger
 
     @contextmanager
-    def imap(self, *args, **kwds):
+    def imap(self, email: str, password: str):
         server = IMAPClient(config.IMAP_SERVER, use_uid=True, ssl=True)
-        server.login(config.EMAIL, config.PWD)
-        server.select_folder('Appeals')
+        server.login(email, password)
 
         try:
             yield server
@@ -36,33 +35,43 @@ class Mailbox:
             self.logger.exception(exc)
             return ''
 
-    def _get_messages(self, email: str) -> tuple:
+    def _search_mail_item(self, client, email) -> tuple:
+        for folder in client.list_folders():
+            client.select_folder(folder[2])
+            unseen_messages = client.search(['TO', email, 'UNSEEN'])
+
+            if not unseen_messages:
+                unseen_messages = client.search(['TEXT', email, 'UNSEEN'])
+
+            if not unseen_messages:
+                unseen_messages = client.search(['UNSEEN'])
+
+            raw_message = client.fetch(unseen_messages, ['BODY[]', 'FLAGS'])
+
+            if unseen_messages:
+                msg_num = unseen_messages[-1]
+                return msg_num, raw_message
+
+        raise IndexError("Can't find letter.")
+
+    def _get_messages(self, email: str, password: str) -> tuple:
         try:
-            with self.imap() as client:
-                unseen_messages = client.search(['TO', email, 'UNSEEN'])
-
-                if not unseen_messages:
-                    unseen_messages = client.search(['TEXT', email, 'UNSEEN'])
-
-                if not unseen_messages:
-                    unseen_messages = client.search(['UNSEEN'])
-
-                raw_message = client.fetch(unseen_messages,
-                                           ['BODY[]', 'FLAGS'])
+            with self.imap(email, password) as client:
+                return self._search_mail_item(client, email)
         except ConnectionResetError or BrokenPipeError as exc:
             self.logger.info(f'ОЙ _get_messages - {str(exc)}')
             self.logger.exception(exc)
-            self._get_messages(email)
+            self._get_messages(email, password)
 
-        msg_num = unseen_messages[-1]
-        return msg_num, raw_message
+        return None, None
 
-    def get_appeal_url(self, email: str) -> str:
+    def get_appeal_url(self, email: str, password: str) -> str:
         try:
             msg_num, raw_message = waiter.wait(IndexError,
                                                self._get_messages,
                                                2,
-                                               email)
+                                               email,
+                                               password)
         except IndexError as exc:
             self.logger.info(f'ОЙ get_appeal_url - {str(exc)}')
             self.logger.exception(exc)

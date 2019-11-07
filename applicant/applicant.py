@@ -10,9 +10,7 @@ import time
 
 
 class Applicant:
-    def __init__(self, logger, address: str = config.EMAIL):
-
-        self.address = address
+    def __init__(self, logger):
         self.mailbox = Mailbox(logger)
         self.browser = None
         self.logger = logger
@@ -112,12 +110,12 @@ class Applicant:
         self.browser.quit()
         return status
 
-    def _get_captcha_site(self) -> None:
+    def _get_captcha_site(self, email: str) -> None:
         self.browser.get('https://minsk.mvd.gov.by/ru/electronicAppealLogin')
 
         email_field = self._get_element_by_id("email")
         self.make_visible(email_field)
-        self._fill_field(email_field, self.address)
+        self._fill_field(email_field, email)
         self.logger.info("Заполнили емаил")
 
         rules_acception = self._get_element_by_class("md-container")
@@ -125,8 +123,8 @@ class Applicant:
         rules_acception.click()
         self.logger.info("Кликнули на галку")
 
-    def get_appeal_url(self, email: str) -> str:
-        return self.mailbox.get_appeal_url(email)
+    def get_appeal_url(self, email: str, password: str) -> str:
+        return self.mailbox.get_appeal_url(email, password)
 
     def _fill_field(self, field, text):
         self.logger.info('Заполняем поле')
@@ -163,24 +161,24 @@ class Applicant:
             raise BrowserError()
 
     @wait_decorator(ElementClickInterceptedException)
-    def get_captcha(self) -> str:
+    def get_captcha(self, email: str) -> str:
         self.cancel()
         self._get_browser()
         self.logger.info("Загрузили браузер")
-        self._get_captcha_site()
+        self._get_captcha_site(email)
         self.logger.info("Загрузили сайт")
         return self._upload_captcha()
 
     @wait_decorator(ElementClickInterceptedException)
-    def request_appeal_url(self, email: str) -> str:
-        self._get_captcha_site()
+    def request_appeal_url(self, email: str, password: str) -> str:
+        self._get_captcha_site(email)
 
         captcha = input("Captcha: ")
 
         if self.enter_captcha_and_submit(captcha) != config.OK:
-            self.request_appeal_url(email)
+            self.request_appeal_url(email, password)
 
-        return self.mailbox.get_appeal_url(email)
+        return self.mailbox.get_appeal_url(email, password)
 
     @wait_decorator(ElementClickInterceptedException)
     def send_appeal(self, data: dict, url: str) -> tuple:

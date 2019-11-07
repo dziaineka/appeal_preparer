@@ -1,7 +1,4 @@
-# appeals email
-EMAIL = "example@example.com"
-PWD = "password"
-IMAP_SERVER = "imap.example.com"
+IMAP_SERVER = "imap-mail.outlook.com"
 
 # appeal request result codes
 OK = 'ok'

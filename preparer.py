@@ -1,3 +1,4 @@
+from typing import Any
 from applicant.exceptions import *
 from exceptions import *
 import logging
@@ -15,7 +16,7 @@ class Preparer:
     def __init__(self, email: str) -> None:
         self.queue_name = email
         self.logger = self.setup_logging()
-        self.applicant = Applicant(self.logger, address=email)
+        self.applicant = Applicant(self.logger)
         self.queue = Rabbit()
 
     def start(self):
@@ -90,7 +91,12 @@ class Preparer:
                                appeal_id)
 
     def process_appeal(self, method, data: dict) -> None:
-        url = self.applicant.get_appeal_url(self.queue_name)
+        email = self.get_value(data, 'sender_email', self.queue_name)
+
+        password = self.get_value(data, 'sender_email_password',
+                                  config.EMAIL_PWD)
+
+        url = self.applicant.get_appeal_url(email, password)
         status_code, message = self.applicant.send_appeal(data['appeal'], url)
 
         if status_code != config.OK:
@@ -104,12 +110,36 @@ class Preparer:
 
         self.queue.send_queue_name(self.queue_name)
 
-    def send_captcha(self, appeal_id: int, user_id: int) -> None:
-        self.current_captcha_url = self.put_capcha_to_queue(appeal_id, user_id)
+    def send_captcha(self,
+                     appeal_id: int,
+                     user_id: int,
+                     email: str) -> None:
+        self.current_captcha_url = self.put_capcha_to_queue(appeal_id,
+                                                            user_id,
+                                                            email)
+
+    @classmethod
+    def get_value(cls, data: dict, key: str, default: Any = None) -> Any:
+        try:
+            value = data[key]
+
+            if value:
+                return value
+            elif default:
+                return default
+            else:
+                return value
+        except KeyError:
+            if default:
+                return default
+            else:
+                return None
 
     def callback(self, ch, method, properties, body: str) -> None:
         data = json.loads(body)
         self.logger.info(" [x] Received %r" % data)
+        email = self.get_value(data, 'sender_email', self.queue_name)
+        self.logger.info(f"Достали имейл: {email}")
 
         try:
             if data['type'] == config.APPEAL:
@@ -119,29 +149,32 @@ class Preparer:
                                      data['user_id'],
                                      data['appeal_id'])
             elif data['type'] == config.GET_CAPTCHA:
-                self.send_captcha(data['appeal_id'], data['user_id'])
+                self.send_captcha(data['appeal_id'], data['user_id'], email)
             elif data['type'] == config.CANCEL:
                 self.logger.info("Отмена")
                 self.applicant.cancel()
                 self.queue.send_queue_name(self.queue_name)
         except CaptchaInputError:
             self.logger.info("Фейл капчи")
-            self.send_captcha(data['appeal_id'], data['user_id'])
+            self.send_captcha(data['appeal_id'], data['user_id'], email)
         except NoMessageFromPolice:
             self.logger.info("Фейл почты")
-            self.send_captcha(data['appeal_id'], data['user_id'])
+            self.send_captcha(data['appeal_id'], data['user_id'], email)
         except ErrorWhileSending:
             self.logger.info("Фейл почты")
-            self.send_captcha(data['appeal_id'], data['user_id'])
+            self.send_captcha(data['appeal_id'], data['user_id'], email)
         except BrowserError:
             self.logger.info("Фейл браузинга")
-            self.send_captcha(data['appeal_id'], data['user_id'])
+            self.send_captcha(data['appeal_id'], data['user_id'], email)
 
         ch.basic_ack(delivery_tag=method.delivery_tag)
         self.logger.info('Обработали, ждем новенького')
 
-    def put_capcha_to_queue(self, appeal_id: int, user_id: int) -> str:
-        url = self.applicant.get_captcha()
+    def put_capcha_to_queue(self,
+                            appeal_id: int,
+                            user_id: int,
+                            email: str) -> str:
+        url = self.applicant.get_captcha(email)
         self.queue.send_captcha_url(url, appeal_id, user_id, self.queue_name)
         return url
 
