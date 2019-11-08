@@ -40,11 +40,12 @@ class Rabbit:
 
     def send_queue_name(self, answer_queue: str) -> None:
         data = {
+            'type': config.FREE_WORKER,
             'answer_queue': answer_queue,
         }
 
         self._send(config.RABBIT_EXCHANGE_APPEAL,
-                   config.RABBIT_ROUTING_TO_BOT,
+                   config.RABBIT_ROUTING_STATUS,
                    data)
 
     def send_status(self,
