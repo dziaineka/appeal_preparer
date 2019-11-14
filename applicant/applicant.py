@@ -141,6 +141,7 @@ class Applicant:
         except Exception as exc:
             self.logger.info(f'ОЙ _get_element_by_class - {str(exc)}')
             self.logger.exception(exc)
+            self.browser.save_screenshot('get_element_by_class.png')
             raise BrowserError()
 
     def _get_element_by_id(self, element_id: str):
@@ -149,6 +150,7 @@ class Applicant:
         except Exception as exc:
             self.logger.info(f'ОЙ _get_element_by_id - {str(exc)}')
             self.logger.exception(exc)
+            self.browser.save_screenshot('get_element_by_id.png')
             raise BrowserError()
 
     def _get_element_by_xpath(self, xpath: str):
