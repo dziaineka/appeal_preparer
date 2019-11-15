@@ -281,6 +281,8 @@ class Applicant:
 
             self.logger.info("Ввели текст")
 
+            self.attach_photos(data['violation_photo_files_paths'])
+
             submit_button = self._get_element_by_xpath(
                 '//div[@class="col-sm-6 text-center"]/' +
                 'button[contains(@class, "md-primary")]')
@@ -313,3 +315,20 @@ class Applicant:
 
         self.logger.info("Успех")
         return config.OK, ''
+
+    def attach_photos(self, photo_paths: list) -> None:
+        attach_field = self._get_element_by_xpath("//input[@type=\"file\"]")
+        label = attach_field.find_element_by_xpath("./..")
+
+        js = "arguments[0].style.height='100px'; \
+            arguments[0].style.width='100px'; \
+            arguments[0].style.overflow='visible'; \
+            arguments[0].style.visibility='visible'; \
+            arguments[0].style.opacity = 1"
+
+        self.browser.execute_script(js, label)
+
+        for path in photo_paths:
+            self._fill_field(attach_field, path)
+
+        self.logger.info("Прикрепили файлы")
