@@ -329,6 +329,9 @@ class Applicant:
         self.browser.execute_script(js, label)
 
         for path in photo_paths:
-            self._fill_field(attach_field, path)
+            try:
+                self._fill_field(attach_field, path)
+            except Exception as exc:
+                self.logger.info(f'Фотка не прикрепляется {path} - {str(exc)}')
 
         self.logger.info("Прикрепили файлы")
