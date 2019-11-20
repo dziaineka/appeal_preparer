@@ -55,20 +55,16 @@ class Applicant:
         else:
             return config.FAIL
 
-    def _extract_status_appeal(self, element) -> str:
+    def _extract_status_appeal(self, element) -> (str, str):
         text = element.text.lower().strip()
 
         self.logger.info(f'_extract_status_appeal - {text}')
 
         if 'ваше обращение отправлено' in text:
-            return config.OK
-        elif text == '':
-            self.logger.info(f'пусто считаем отправлено на всякий')
-            self.browser.save_screenshot('extract_status_appeal_empty.png')
-            return config.OK
+            return config.OK, text
         else:
             self.browser.save_screenshot('extract_status_appeal.png')
-            return config.FAIL
+            return config.FAIL, text
 
     def _upload_captcha(self) -> str:
         captcha = self._get_element_by_xpath(
@@ -297,15 +293,10 @@ class Applicant:
 
             self.logger.info("Отправили")
 
-            time.sleep(1)
-
-            infobox = self._get_element_by_xpath(
-                '//div[@id="info-message"]/p')
-
-            submit_status = self._extract_status_appeal(infobox)
+            submit_status, status_text = self.get_submit_status()
 
             if submit_status != config.OK:
-                return config.FAIL, infobox.text
+                return config.FAIL, status_text
         except ElementClickInterceptedException as exc:
             self.browser.save_screenshot(
                 'ElementClickInterceptedException.png')
@@ -320,6 +311,26 @@ class Applicant:
 
         self.logger.info("Успех")
         return config.OK, ''
+
+    def get_submit_status(self) -> (str, str):
+        text = ''
+        counter = 0
+        infobox = None
+
+        while not text:
+            self.logger.error(f'Попытка взять статус отправки {counter}')
+
+            if counter > 5:
+                self.logger.error('Нет сообщения со статусом отправки')
+                self.browser.save_screenshot('get_submit_status_error.png')
+                raise BrowserError
+
+            infobox = self._get_element_by_xpath('//div[@id="info-message"]/p')
+            text = infobox.text.strip()
+            counter += 1
+            time.sleep(1)
+
+        return self._extract_status_appeal(infobox)
 
     def attach_photos(self, photo_paths: list) -> None:
         attach_field = self._get_element_by_xpath("//input[@type=\"file\"]")
