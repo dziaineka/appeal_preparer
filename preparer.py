@@ -161,7 +161,7 @@ class Preparer:
             self.logger.info("Фейл почты")
             self.send_captcha(data['appeal_id'], data['user_id'], email)
         except ErrorWhileSending:
-            self.logger.info("Фейл почты")
+            self.logger.info("Фейл во время отправки")
             self.send_captcha(data['appeal_id'], data['user_id'], email)
         except BrowserError:
             self.logger.info("Фейл браузинга")

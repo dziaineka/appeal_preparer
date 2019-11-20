@@ -56,13 +56,18 @@ class Applicant:
             return config.FAIL
 
     def _extract_status_appeal(self, element) -> str:
-        text = element.text.lower()
+        text = element.text.lower().strip()
 
-        self.logger.info(text)
+        self.logger.info(f'_extract_status_appeal - {text}')
 
         if 'ваше обращение отправлено' in text:
             return config.OK
+        elif text == '':
+            self.logger.info(f'пусто считаем отправлено на всякий')
+            self.browser.save_screenshot('extract_status_appeal_empty.png')
+            return config.OK
         else:
+            self.browser.save_screenshot('extract_status_appeal.png')
             return config.FAIL
 
     def _upload_captcha(self) -> str:
