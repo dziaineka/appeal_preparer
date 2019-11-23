@@ -6,6 +6,7 @@ from applicant.waiter import wait_decorator
 import requests
 import applicant.config as config
 from applicant.exceptions import *
+from typing import Callable
 import time
 
 
@@ -43,17 +44,17 @@ class Applicant:
         self.browser.execute_script(
             f'window.scrollTo({coordinates["x"]}, {coordinates["y"]});')
 
-    def _extract_status_captcha(self, element) -> str:
+    def _extract_status_captcha(self, element) -> (str, str):
         text = element.text.lower()
 
-        self.logger.info(text)
+        self.logger.info(f'_extract_status_captcha - {text}')
 
         if text == 'неверно введена капча':
-            return config.WRONG_INPUT
+            return config.WRONG_INPUT, text
         elif 'выслано письмо со ссылкой' in text:
-            return config.OK
+            return config.OK, text
         else:
-            return config.FAIL
+            return config.FAIL, text
 
     def _extract_status_appeal(self, element) -> (str, str):
         text = element.text.lower().strip()
@@ -92,12 +93,10 @@ class Applicant:
 
         self.logger.info("Нажали сабмит капчи")
 
-        time.sleep(1)
+        submit_status, status_text = self.get_submit_status(
+            self._extract_status_captcha)
 
-        submit_status = self._extract_status_captcha(
-            self._get_element_by_xpath('//div[@id="info-message"]/p'))
-
-        self.logger.info(f'Достали статус {submit_status}')
+        self.logger.info(f'Достали статус {status_text}')
 
         if submit_status == config.WRONG_INPUT:
             self.browser.save_screenshot('WRONG_INPUT.png')
@@ -293,7 +292,8 @@ class Applicant:
 
             self.logger.info("Отправили")
 
-            submit_status, status_text = self.get_submit_status()
+            submit_status, status_text = self.get_submit_status(
+                self._extract_status_appeal)
 
             if submit_status != config.OK:
                 return config.FAIL, status_text
@@ -312,7 +312,7 @@ class Applicant:
         self.logger.info("Успех")
         return config.OK, ''
 
-    def get_submit_status(self) -> (str, str):
+    def get_submit_status(self, extractor: Callable) -> (str, str):
         text = ''
         counter = 0
         infobox = None
@@ -320,7 +320,7 @@ class Applicant:
         while not text:
             self.logger.error(f'Попытка взять статус отправки {counter}')
 
-            if counter > 5:
+            if counter > 10:
                 self.logger.error('Нет сообщения со статусом отправки')
                 self.browser.save_screenshot('get_submit_status_error.png')
                 raise BrowserError
@@ -328,9 +328,9 @@ class Applicant:
             infobox = self._get_element_by_xpath('//div[@id="info-message"]/p')
             text = infobox.text.strip()
             counter += 1
-            time.sleep(1)
+            time.sleep(0.5)
 
-        return self._extract_status_appeal(infobox)
+        return extractor(infobox)
 
     def attach_photos(self, photo_paths: list) -> None:
         attach_field = self._get_element_by_xpath("//input[@type=\"file\"]")
