@@ -288,15 +288,17 @@ class Applicant:
                 'button[contains(@class, "md-primary")]')
 
             self.make_visible(submit_button)
-            submit_button.click()
 
-            self.logger.info("Отправили")
+            if config.ALLOW_SENDING:
+                submit_button.click()
 
-            submit_status, status_text = self.get_submit_status(
-                self._extract_status_appeal)
+                self.logger.info("Отправили")
 
-            if submit_status != config.OK:
-                return config.FAIL, status_text
+                submit_status, status_text = self.get_submit_status(
+                    self._extract_status_appeal)
+
+                if submit_status != config.OK:
+                    return config.FAIL, status_text
         except ElementClickInterceptedException as exc:
             self.browser.save_screenshot(
                 'ElementClickInterceptedException.png')
