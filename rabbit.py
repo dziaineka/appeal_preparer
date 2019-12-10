@@ -38,9 +38,19 @@ class Rabbit:
                    config.RABBIT_ROUTING_STATUS,
                    data)
 
-    def send_queue_name(self, answer_queue: str) -> None:
+    def send_queue_free(self, answer_queue: str) -> None:
         data = {
             'type': config.FREE_WORKER,
+            'answer_queue': answer_queue,
+        }
+
+        self._send(config.RABBIT_EXCHANGE_APPEAL,
+                   config.RABBIT_ROUTING_STATUS,
+                   data)
+
+    def send_queue_busy(self, answer_queue: str) -> None:
+        data = {
+            'type': config.BUSY_WORKER,
             'answer_queue': answer_queue,
         }
 

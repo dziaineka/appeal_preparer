@@ -46,7 +46,7 @@ class Preparer:
                                    consumer_tag=self.queue_name,
                                    on_message_callback=self.callback)
 
-        self.queue.send_queue_name(self.queue_name)
+        self.queue.send_queue_free(self.queue_name)
         self.logger.info('Стартанули')
         self.channel.start_consuming()
 
@@ -108,7 +108,7 @@ class Preparer:
                                data['appeal_id'],
                                message)
 
-        self.queue.send_queue_name(self.queue_name)
+        self.queue.send_queue_free(self.queue_name)
 
     def send_captcha(self,
                      appeal_id: int,
@@ -136,6 +136,7 @@ class Preparer:
                 return None
 
     def callback(self, ch, method, properties, body: str) -> None:
+        self.queue.send_queue_busy(self.queue_name)
         data = json.loads(body)
         self.logger.info(" [x] Received %r" % data)
         email = self.get_value(data, 'sender_email', self.queue_name)
@@ -153,7 +154,7 @@ class Preparer:
             elif data['type'] == config.CANCEL:
                 self.logger.info("Отмена")
                 self.applicant.cancel()
-                self.queue.send_queue_name(self.queue_name)
+                self.queue.send_queue_free(self.queue_name)
         except CaptchaInputError:
             self.logger.info("Фейл капчи")
             self.send_captcha(data['appeal_id'], data['user_id'], email)

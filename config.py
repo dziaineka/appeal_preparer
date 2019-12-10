@@ -16,6 +16,7 @@ CAPTCHA_URL = 'captcha_url'
 CAPTCHA_OK = 'captcha_ok'
 CAPTCHA_FAIL = 'captcha_fail'
 FREE_WORKER = 'free_worker'
+BUSY_WORKER = 'busy_worker'
 
 # message types
 CAPTCHA_TEXT = 'captcha_text'
