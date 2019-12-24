@@ -170,6 +170,9 @@ class Preparer:
         except BrowserError:
             self.logger.info("Фейл браузинга")
             self.send_captcha(data['appeal_id'], data['user_id'], email)
+        except RancidAppeal:
+            self.logger.info("Взяли протухшую форму обращения")
+            self.process_appeal(method, data)
 
         ch.basic_ack(delivery_tag=method.delivery_tag)
         self.logger.info('Обработали, ждем новенького')

@@ -12,3 +12,7 @@ class CaptchaInputError(Exception):
 
 class BrowserError(Exception):
     pass
+
+
+class RancidAppeal(Exception):
+    pass

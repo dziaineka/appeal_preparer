@@ -56,16 +56,21 @@ class Applicant:
         else:
             return config.FAIL, text
 
-    def _extract_status_appeal(self, element) -> Tuple[str, str]:
+    def _extract_status_sending(self, element) -> Tuple[str, str]:
         text = element.text.lower().strip()
 
-        self.logger.info(f'_extract_status_appeal - {text}')
+        self.logger.info(f'_extract_status_sending - {text}')
 
         if 'ваше обращение отправлено' in text:
             return config.OK, text
         else:
-            self.browser.save_screenshot('extract_status_appeal.png')
+            self.browser.save_screenshot('extract_status_sending.png')
             return config.FAIL, text
+
+    def _extract_status_appeal(self, element) -> Tuple[str, str]:
+        text = element.text.lower().strip()
+        self.logger.info(f'_extract_status_appeal - {text}')
+        return config.OK, text
 
     def _upload_captcha(self) -> str:
         captcha = self._get_element_by_xpath(
@@ -93,7 +98,7 @@ class Applicant:
 
         self.logger.info("Нажали сабмит капчи")
 
-        submit_status, status_text = self.get_submit_status(
+        submit_status, status_text = self.get_popup_info(
             self._extract_status_captcha)
 
         self.logger.info(f'Достали статус {status_text}')
@@ -294,14 +299,23 @@ class Applicant:
 
                 self.logger.info("Отправили")
 
-                submit_status, status_text = self.get_submit_status(
-                    self._extract_status_appeal)
+                submit_status, status_text = self.get_popup_info(
+                    self._extract_status_sending)
 
                 if submit_status != config.OK:
                     return config.FAIL, status_text
         except ElementClickInterceptedException as exc:
             self.browser.save_screenshot(
                 'ElementClickInterceptedException.png')
+
+            # let's try to get error message
+            status, status_text = self.get_popup_info(
+                self._extract_status_appeal,
+                max_attempts=3)
+
+            if status == config.OK:
+                self.logger.info(status_text)
+                raise RancidAppeal
 
             raise exc
         except Exception as exc:
@@ -314,17 +328,19 @@ class Applicant:
         self.logger.info("Успех")
         return config.OK, ''
 
-    def get_submit_status(self, extractor: Callable) -> Tuple[str, str]:
+    def get_popup_info(self,
+                       extractor: Callable,
+                       max_attempts: int = 10) -> Tuple[str, str]:
         text = ''
         counter = 0
         infobox = None
 
         while not text:
-            self.logger.error(f'Попытка взять статус отправки {counter}')
+            self.logger.error(f'Попытка взять текст попапа {counter}')
 
-            if counter > 10:
-                self.logger.error('Нет сообщения со статусом отправки')
-                self.browser.save_screenshot('get_submit_status_error.png')
+            if counter > max_attempts:
+                self.logger.error('Нет попапа')
+                self.browser.save_screenshot('get_popup_info_error.png')
                 raise BrowserError
 
             infobox = self._get_element_by_xpath('//div[@id="info-message"]/p')
