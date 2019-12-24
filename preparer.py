@@ -159,7 +159,10 @@ class Preparer:
             self.logger.info("Фейл капчи")
             self.send_captcha(data['appeal_id'], data['user_id'], email)
         except NoMessageFromPolice:
-            self.logger.info("Фейл почты")
+            self.logger.info("Фейл почты. Не нашлось письмо.")
+            self.send_captcha(data['appeal_id'], data['user_id'], email)
+        except AppealURLParsingFailed:
+            self.logger.info("Не удалось распарсить урл из письма.")
             self.send_captcha(data['appeal_id'], data['user_id'], email)
         except ErrorWhileSending:
             self.logger.info("Фейл во время отправки")

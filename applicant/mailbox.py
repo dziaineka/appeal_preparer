@@ -4,7 +4,7 @@ import applicant.regexps as regexps
 import applicant.waiter as waiter
 import applicant.config as config
 from imapclient import IMAPClient
-from applicant.exceptions import NoMessageFromPolice
+from applicant.exceptions import NoMessageFromPolice, AppealURLParsingFailed
 from contextlib import contextmanager
 
 
@@ -80,5 +80,9 @@ class Mailbox:
         message = pyzmail.PyzMessage.factory(raw_message[msg_num][b'BODY[]'])
         charset = message.html_part.charset
         html = message.html_part.get_payload().decode(charset)
-        url = self._extract_appeal_url(html)  # fail check needed
+        url = self._extract_appeal_url(html)
+
+        if not url:
+            raise AppealURLParsingFailed
+
         return url

@@ -2,6 +2,10 @@ class NoMessageFromPolice(Exception):
     pass
 
 
+class AppealURLParsingFailed(Exception):
+    pass
+
+
 class CaptchaInputError(Exception):
     pass
 
