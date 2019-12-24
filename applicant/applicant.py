@@ -6,7 +6,7 @@ from applicant.waiter import wait_decorator
 import requests
 import applicant.config as config
 from applicant.exceptions import *
-from typing import Callable
+from typing import Callable, Tuple
 import time
 
 
@@ -44,7 +44,7 @@ class Applicant:
         self.browser.execute_script(
             f'window.scrollTo({coordinates["x"]}, {coordinates["y"]});')
 
-    def _extract_status_captcha(self, element) -> (str, str):
+    def _extract_status_captcha(self, element) -> Tuple[str, str]:
         text = element.text.lower()
 
         self.logger.info(f'_extract_status_captcha - {text}')
@@ -56,7 +56,7 @@ class Applicant:
         else:
             return config.FAIL, text
 
-    def _extract_status_appeal(self, element) -> (str, str):
+    def _extract_status_appeal(self, element) -> Tuple[str, str]:
         text = element.text.lower().strip()
 
         self.logger.info(f'_extract_status_appeal - {text}')
@@ -314,7 +314,7 @@ class Applicant:
         self.logger.info("Успех")
         return config.OK, ''
 
-    def get_submit_status(self, extractor: Callable) -> (str, str):
+    def get_submit_status(self, extractor: Callable) -> Tuple[str, str]:
         text = ''
         counter = 0
         infobox = None
