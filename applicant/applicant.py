@@ -28,6 +28,9 @@ class Applicant:
             pass
 
     def _get_browser(self):
+        if self.browser:
+            self.cancel()
+
         chrome_options = Options()
 
         chrome_options.add_argument("--disable-extensions")
