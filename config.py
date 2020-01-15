@@ -1,7 +1,7 @@
 # RabbitMQ
 RABBIT_HOST = 'localhost'
-RABBIT_LOGIN = 'appeal_preparer'
-RABBIT_PASSWORD = 'appeal_preparer'
+RABBIT_LOGIN = 'appeal_sender'
+RABBIT_PASSWORD = 'appeal_sender'
 RABBIT_ADDRESS = f'http://{RABBIT_LOGIN}:{RABBIT_PASSWORD}@localhost:15672'
 RABBIT_EXCHANGE_MANAGING = 'managing'
 RABBIT_EXCHANGE_SENDING = 'sending'

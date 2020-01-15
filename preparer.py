@@ -58,7 +58,7 @@ class Preparer:
 
     def setup_logging(self):
         # create logger
-        logger = logging.getLogger('appeal_preparer')
+        logger = logging.getLogger('appeal_sender')
         logger.setLevel(logging.DEBUG)
 
         extra = {'queue': self.queue_name}
