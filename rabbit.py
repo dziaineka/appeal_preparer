@@ -34,7 +34,7 @@ class Rabbit:
             'answer_queue': answer_queue,
         }
 
-        self._send(config.RABBIT_EXCHANGE_APPEAL,
+        self._send(config.RABBIT_EXCHANGE_SENDING,
                    config.RABBIT_ROUTING_STATUS,
                    data)
 
@@ -44,8 +44,8 @@ class Rabbit:
             'answer_queue': answer_queue,
         }
 
-        self._send(config.RABBIT_EXCHANGE_APPEAL,
-                   config.RABBIT_ROUTING_STATUS,
+        self._send(config.RABBIT_EXCHANGE_MANAGING,
+                   config.RABBIT_ROUTING_AVAILABILITY,
                    data)
 
     def send_queue_busy(self, answer_queue: str) -> None:
@@ -54,8 +54,8 @@ class Rabbit:
             'answer_queue': answer_queue,
         }
 
-        self._send(config.RABBIT_EXCHANGE_APPEAL,
-                   config.RABBIT_ROUTING_STATUS,
+        self._send(config.RABBIT_EXCHANGE_MANAGING,
+                   config.RABBIT_ROUTING_AVAILABILITY,
                    data)
 
     def send_status(self,
@@ -72,6 +72,6 @@ class Rabbit:
             'appeal_id': appeal_id,
         }
 
-        self._send(config.RABBIT_EXCHANGE_APPEAL,
+        self._send(config.RABBIT_EXCHANGE_SENDING,
                    config.RABBIT_ROUTING_STATUS,
                    status)

@@ -37,7 +37,7 @@ class Preparer:
                                    auto_delete=False)
 
         self.channel.queue_bind(queue=self.queue_name,
-                                exchange=config.RABBIT_EXCHANGE_APPEAL,
+                                exchange=config.RABBIT_EXCHANGE_SENDING,
                                 routing_key=self.queue_name)
 
         self.channel.basic_qos(prefetch_count=1)

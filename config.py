@@ -3,9 +3,10 @@ RABBIT_HOST = 'localhost'
 RABBIT_LOGIN = 'appeal_preparer'
 RABBIT_PASSWORD = 'appeal_preparer'
 RABBIT_ADDRESS = f'http://{RABBIT_LOGIN}:{RABBIT_PASSWORD}@localhost:15672'
-RABBIT_EXCHANGE_APPEAL = 'appeal'
-RABBIT_ROUTING_STATUS = 'appeal_status'
-RABBIT_ROUTING_APPEAL_URL = 'appeal_url'
+RABBIT_EXCHANGE_MANAGING = 'managing'
+RABBIT_EXCHANGE_SENDING = 'sending'
+RABBIT_ROUTING_STATUS = 'appeal_sending_status'
+RABBIT_ROUTING_AVAILABILITY = 'sender_availability'
 
 # appeal status codes
 OK = 'ok'
