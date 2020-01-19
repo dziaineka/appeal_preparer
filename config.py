@@ -3,10 +3,18 @@ RABBIT_HOST = 'localhost'
 RABBIT_LOGIN = 'appeal_sender'
 RABBIT_PASSWORD = 'appeal_sender'
 RABBIT_ADDRESS = f'http://{RABBIT_LOGIN}:{RABBIT_PASSWORD}@localhost:15672'
+RABBIT_AMQP_ADDRESS = f'amqp://{RABBIT_LOGIN}:{RABBIT_PASSWORD}@localhost:5672'
 RABBIT_EXCHANGE_MANAGING = 'managing'
 RABBIT_EXCHANGE_SENDING = 'sending'
 RABBIT_ROUTING_STATUS = 'appeal_sending_status'
 RABBIT_ROUTING_AVAILABILITY = 'sender_availability'
+RABBIT_ROUTING_VIOLATION = 'violation'
+RABBIT_QUEUE_APPEAL = 'appeal'
+RABBIT_QUEUE_TO_BOT = 'sending_status'
+
+# sender statuses
+FREE_WORKER = 'free_worker'
+BUSY_WORKER = 'busy_worker'
 
 # appeal status codes
 OK = 'ok'

@@ -1,5 +1,5 @@
 import multiprocessing
-from preparer import start
+from sender import start
 import config
 
 

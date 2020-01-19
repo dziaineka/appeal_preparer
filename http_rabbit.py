@@ -24,7 +24,8 @@ class Rabbit:
                 f'Ошибка при отправке урл в очередь: {response.reason}')
 
     def send_captcha_url(self, url: str,
-                         appeal_id, user_id: int,
+                         appeal_id: int,
+                         user_id: int,
                          answer_queue: str) -> None:
         data = {
             'type': config.CAPTCHA_URL,
