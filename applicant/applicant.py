@@ -67,7 +67,7 @@ class Applicant:
         if 'ваше обращение отправлено' in text:
             return config.OK, text
         else:
-            self.browser.save_screenshot('extract_status_sending.png')
+            # self.browser.save_screenshot('extract_status_sending.png')
             return config.FAIL, text
 
     def _extract_status_appeal(self, element) -> Tuple[str, str]:
@@ -107,10 +107,10 @@ class Applicant:
         self.logger.info(f'Достали статус {status_text}')
 
         if submit_status == config.WRONG_INPUT:
-            self.browser.save_screenshot('WRONG_INPUT.png')
+            # self.browser.save_screenshot('WRONG_INPUT.png')
             status = config.WRONG_INPUT
         elif submit_status != config.OK:
-            self.browser.save_screenshot('FAIL.png')
+            # self.browser.save_screenshot('FAIL.png')
             status = config.FAIL
         else:
             status = config.OK
@@ -149,7 +149,7 @@ class Applicant:
         except Exception as exc:
             self.logger.info(f'ОЙ _get_element_by_class - {str(exc)}')
             self.logger.exception(exc)
-            self.browser.save_screenshot('get_element_by_class.png')
+            # self.browser.save_screenshot('get_element_by_class.png')
             raise BrowserError()
 
     def _get_element_by_id(self, element_id: str):
@@ -158,7 +158,7 @@ class Applicant:
         except Exception as exc:
             self.logger.info(f'ОЙ _get_element_by_id - {str(exc)}')
             self.logger.exception(exc)
-            self.browser.save_screenshot('get_element_by_id.png')
+            # self.browser.save_screenshot('get_element_by_id.png')
             raise BrowserError()
 
     def _get_element_by_xpath(self, xpath: str):
@@ -167,7 +167,7 @@ class Applicant:
         except Exception as exc:
             self.logger.info(f'ОЙ _get_element_by_xpath - {str(exc)}')
             self.logger.exception(exc)
-            self.browser.save_screenshot('get_element_by_xpath.png')
+            # self.browser.save_screenshot('get_element_by_xpath.png')
             raise BrowserError()
 
     @wait_decorator(ElementClickInterceptedException)
@@ -308,8 +308,8 @@ class Applicant:
                 if submit_status != config.OK:
                     return config.FAIL, status_text
         except ElementClickInterceptedException as exc:
-            self.browser.save_screenshot(
-                'ElementClickInterceptedException.png')
+            # self.browser.save_screenshot(
+                # 'ElementClickInterceptedException.png')
 
             # let's try to get error message
             status, status_text = self.get_popup_info(
@@ -343,7 +343,7 @@ class Applicant:
 
             if counter > max_attempts:
                 self.logger.error('Нет попапа')
-                self.browser.save_screenshot('get_popup_info_error.png')
+                # self.browser.save_screenshot('get_popup_info_error.png')
                 raise BrowserError
 
             infobox = self._get_element_by_xpath('//div[@id="info-message"]/p')
