@@ -31,19 +31,20 @@ class Rabbit:
         async with self.connection:
             # Creating channel
             channel = await self.connection.channel()
+            await channel.set_qos(prefetch_count=1)
 
             # Declaring queue
             queue = await channel.declare_queue(
                 self.queue_name,
                 auto_delete=False,
-                durable=True
+                durable=True,
+
             )
 
             await queue.bind(self.exhange_name, self.queue_name)
-
+            # await queue.consume(callback=callback)
             while True:
                 async with queue.iterator() as queue_iter:
                     async for message in queue_iter:
-                        print("aaaaaaaaaaaaaaaaaaaa")
                         async with message.process():
                             await callback(message.body.decode())

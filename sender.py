@@ -10,7 +10,7 @@ import time
 from typing import Any, Optional
 from applicant.exceptions import *
 from exceptions import *
-import aio_pika
+from multiprocessing import shared_memory
 
 
 class Sender():
@@ -22,6 +22,8 @@ class Sender():
         self.queue_to_bot = Rabbit()
         self.sending_in_progress = False
         self.current_appeal: dict
+        self.email_to_delete = ''
+        self.same_email_sleep = 1
 
     def setup_logging(self):
         # create logger
@@ -56,6 +58,8 @@ class Sender():
         while self.sending_in_progress:
             await asyncio.sleep(2)
 
+        self.delete_from_busy_list(self.email_to_delete)
+
         self.current_appeal = {}
         self.logger.info(f'Обращение обработано ' +
                          f'user_id: {appeal["user_id"]} ' +
@@ -64,15 +68,60 @@ class Sender():
     async def async_process_new_appeal(self, appeal: dict) -> None:
         self.logger.info(f'Новое обращение: {appeal}')
         email = self.get_value(appeal, 'sender_email', self.queue_from_bot)
-        self.add_email_to_busy_list(email)
-        self.logger.info(f"Достали имейл: {email}")
         self.current_appeal = appeal
+        self.email_to_delete = email
+
+        if not self.new_in_busy_list(email):
+            self.logger.info(f'Такой email уже отправляет - ' +
+                             f'в конец очереди: {email}')
+
+            self.queue_to_bot.reqeue(self.current_appeal)
+            await asyncio.sleep(self.same_email_sleep)
+            self.same_email_sleep = self.same_email_sleep * 2
+            self.email_to_delete = ''
+            self.sending_in_progress = False
+            return
+
+        self.same_email_sleep = 1
+        self.logger.info(f"Достали имейл: {email}")
 
         try:
             self.send_captcha(appeal['appeal_id'], appeal['user_id'], email)
         except BrowserError:
             self.logger.info("Фейл браузинга")
             self.send_captcha(appeal['appeal_id'], appeal['user_id'], email)
+
+    def new_in_busy_list(self, email: str) -> bool:
+        try:
+            busy_list = shared_memory.ShareableList(name=config.BUSY_LIST)
+        except FileNotFoundError:
+            busy_list = shared_memory.ShareableList([], name=config.BUSY_LIST)
+
+        if email in busy_list:
+            return False
+        else:
+            new_list = list(busy_list)
+            new_list.append(email)
+            busy_list.shm.close()
+            busy_list.shm.unlink()
+            shared_memory.ShareableList(new_list, name=config.BUSY_LIST)
+            return True
+
+    def delete_from_busy_list(self, email: str) -> None:
+        try:
+            busy_list = shared_memory.ShareableList(name=config.BUSY_LIST)
+        except FileNotFoundError:
+            busy_list = shared_memory.ShareableList([], name=config.BUSY_LIST)
+
+        if email in busy_list:
+            new_list = list(busy_list)
+
+            while email in new_list:
+                new_list.remove(email)
+
+            busy_list.shm.close()
+            busy_list.shm.unlink()
+            shared_memory.ShareableList(new_list, name=config.BUSY_LIST)
 
     def send_captcha(self,
                      appeal_id: int,
@@ -85,14 +134,10 @@ class Sender():
                                            user_id,
                                            self.queue_from_bot)
 
-    def add_email_to_busy_list(self, email: str) -> None:
-        self.logger.info(f"Заимплементи бизи лист!!: {email}")
-
     async def process_bot_message(self, raw_sender_status: str) -> None:
         data = json.loads(raw_sender_status)
         self.logger.info(f'Сообщение бота: {data}')
         email = self.get_value(data, 'sender_email', self.queue_from_bot)
-        self.add_email_to_busy_list(email)
         self.logger.info(f"Достали имейл: {email}")
 
         try:
@@ -199,6 +244,10 @@ class Sender():
                 return default
             else:
                 return None
+
+    def stop(self):
+        self.logger.info('Суецыд')
+        self.applicant.cancel()
 
 
 def run_consuming(sender):

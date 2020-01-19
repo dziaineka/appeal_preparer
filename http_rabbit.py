@@ -76,3 +76,8 @@ class Rabbit:
         self._send(config.RABBIT_EXCHANGE_SENDING,
                    config.RABBIT_ROUTING_STATUS,
                    status)
+
+    def reqeue(self, body):
+        self._send(config.RABBIT_EXCHANGE_MANAGING,
+                   config.RABBIT_ROUTING_APPEAL,
+                   body)
