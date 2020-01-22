@@ -1,6 +1,9 @@
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-from selenium.common.exceptions import ElementClickInterceptedException
+from selenium.common.exceptions import \
+    ElementClickInterceptedException, \
+    WebDriverException
+from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from applicant.mailbox import Mailbox
 from applicant.waiter import wait_decorator
 import requests
@@ -22,6 +25,8 @@ class Applicant:
         try:
             if self.browser:
                 self.browser.quit()
+        except WebDriverException as exc:
+            self.logger.info(f'ОЙ cancel - {str(exc)}')
         except Exception as exc:
             self.logger.info(f'ОЙ cancel - {str(exc)}')
             self.logger.exception(exc)
@@ -31,13 +36,9 @@ class Applicant:
         if self.browser:
             self.cancel()
 
-        chrome_options = Options()
+        self.browser = webdriver.Remote(config.CHROME_URL,
+                                        DesiredCapabilities.CHROME)
 
-        chrome_options.add_argument("--disable-extensions")
-        chrome_options.add_argument("--headless")
-        chrome_options.add_argument("--window-size=1080,1920")
-        self.browser = webdriver.Chrome(options=chrome_options)
-        # self.browser = webdriver.Chrome()
         self.browser.implicitly_wait(10)  # seconds
 
     def make_visible(self, element) -> None:

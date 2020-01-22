@@ -14,3 +14,11 @@ services:
       dockerfile: Dockerfile
     volumes:
       - /tmp/temp_files_parkun:/tmp/temp_files_parkun
+
+  chrome:
+    container_name: parkun_chrome
+    image: selenium/standalone-chrome:3.141.59
+    networks:
+      - proxynet
+    ports:
+      - 4444:4444
