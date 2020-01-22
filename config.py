@@ -19,6 +19,10 @@ BUSY_WORKER = 'busy_worker'
 # email busy list
 BUSY_LIST = 'email_busy_list'
 
+# cancel timer
+CANCEL_TIMEOUT = 2  # mins
+TIMEOUT_MESSAGE = 'times_up'
+
 # appeal status codes
 OK = 'ok'
 FAIL = 'fail'
@@ -32,6 +36,7 @@ BUSY_WORKER = 'busy_worker'
 
 # message types
 CAPTCHA_TEXT = 'captcha_text'
+SENDING_CANCELLED = 'sending_cancelled'
 GET_CAPTCHA = 'get_captcha'
 APPEAL = 'appeal'
 CANCEL = 'cancel'

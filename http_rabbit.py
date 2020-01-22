@@ -23,7 +23,25 @@ class Rabbit:
             raise ErrorWhilePutInQueue(
                 f'Ошибка при отправке урл в очередь: {response.reason}')
 
-    def send_captcha_url(self, url: str,
+    def send_sending_stopped(self,
+                             appeal_id: int,
+                             user_id: int,
+                             answer_queue: str,
+                             message=config.TIMEOUT_MESSAGE):
+        data = {
+            'type': config.SENDING_CANCELLED,
+            'appeal_id': appeal_id,
+            'user_id': user_id,
+            'answer_queue': answer_queue,
+            'message': message
+        }
+
+        self._send(config.RABBIT_EXCHANGE_SENDING,
+                   config.RABBIT_ROUTING_STATUS,
+                   data)
+
+    def send_captcha_url(self,
+                         url: str,
                          appeal_id: int,
                          user_id: int,
                          answer_queue: str) -> None:
@@ -37,26 +55,6 @@ class Rabbit:
 
         self._send(config.RABBIT_EXCHANGE_SENDING,
                    config.RABBIT_ROUTING_STATUS,
-                   data)
-
-    def send_queue_free(self, answer_queue: str) -> None:
-        data = {
-            'type': config.FREE_WORKER,
-            'answer_queue': answer_queue,
-        }
-
-        self._send(config.RABBIT_EXCHANGE_MANAGING,
-                   config.RABBIT_ROUTING_AVAILABILITY,
-                   data)
-
-    def send_queue_busy(self, answer_queue: str) -> None:
-        data = {
-            'type': config.BUSY_WORKER,
-            'answer_queue': answer_queue,
-        }
-
-        self._send(config.RABBIT_EXCHANGE_MANAGING,
-                   config.RABBIT_ROUTING_AVAILABILITY,
                    data)
 
     def send_status(self,

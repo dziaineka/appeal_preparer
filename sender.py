@@ -11,6 +11,7 @@ from typing import Any, Optional
 from applicant.exceptions import *
 from exceptions import *
 from multiprocessing import shared_memory
+from timer import Timer
 
 
 class Sender():
@@ -24,6 +25,7 @@ class Sender():
         self.current_appeal: dict
         self.email_to_delete = ''
         self.same_email_sleep = 1
+        self.stop_timer = Timer(self.stop_appeal_sending, self.loop)
 
     def setup_logging(self):
         # create logger
@@ -134,6 +136,8 @@ class Sender():
                                            user_id,
                                            self.queue_from_bot)
 
+        self.stop_timer.cock_it(config.CANCEL_TIMEOUT)
+
     async def process_bot_message(self, raw_sender_status: str) -> None:
         data = json.loads(raw_sender_status)
         self.logger.info(f'Сообщение бота: {data}')
@@ -142,14 +146,13 @@ class Sender():
 
         try:
             if data['type'] == config.CAPTCHA_TEXT:
+                self.stop_timer.delete()
                 self.process_captcha(data['captcha_text'],
                                      data['user_id'],
                                      data['appeal_id'])
 
             elif data['type'] == config.CANCEL:
-                self.logger.info("Отмена")
-                self.sending_in_progress = False
-                self.applicant.cancel()
+                await self.stop_appeal_sending(local=True)
         except CaptchaInputError:
             self.logger.info("Фейл капчи")
             self.send_captcha(data['appeal_id'], data['user_id'], email)
@@ -220,9 +223,24 @@ class Sender():
                                  config.RABBIT_AMQP_ADDRESS)
 
         asyncio.ensure_future(bot.start(loop, self.process_bot_message))
+        asyncio.ensure_future(self.stop_timer.start())
 
         self.logger.info(f"Воркер стартует.")
         await appeals.start(loop, self.process_new_appeal)
+
+    async def stop_appeal_sending(self, local=False):
+        self.logger.info(f"Останавливаем отправку обращения")
+        if not local:
+            self.queue_to_bot.send_sending_stopped(
+                self.current_appeal['appeal_id'],
+                self.current_appeal['user_id'],
+                self.queue_from_bot
+            )
+
+        self.stop_timer.delete()
+        self.logger.info("Отмена")
+        self.sending_in_progress = False
+        self.applicant.cancel()
 
     def start(self):
         self.loop.run_until_complete(self.start_sender(self.loop))
