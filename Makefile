@@ -10,8 +10,14 @@ py_env:
 		pip install -r requirements.txt; \
 	)
 
-start:
-	docker-compose -f docker-compose.yml up -d --build
+start_dev:
+	docker-compose -f docker-compose-chrome.yml up -d --build
 
-stop:
-	docker-compose -f docker-compose.yml down
+stop_dev:
+	docker-compose -f docker-compose-chrome.yml down
+
+start_prod:
+	docker-compose -f docker-compose-chrome.yml -f docker-compose.yml up -d --build
+
+stop_prod:
+	docker-compose -f docker-compose-chrome.yml -f docker-compose.yml down

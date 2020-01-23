@@ -1,0 +1,16 @@
+version: '3.5'
+
+networks:
+  proxynet:
+    name: parkun
+
+services:
+  chrome:
+    container_name: parkun_chrome
+    image: selenium/standalone-chrome:3.141.59
+    networks:
+      - proxynet
+    ports:
+      - 4444:4444
+    volumes:
+      - /dev/shm:/dev/shm
