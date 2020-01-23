@@ -1,5 +1,6 @@
-import aio_pika
+import aioamqp
 import asyncio
+import config
 
 
 class Rabbit:
@@ -13,38 +14,38 @@ class Rabbit:
         self.exhange_name = exhange_name
         self.amqp_address = amqp_address
 
-    async def start(self, loop, callback) -> None:
+    async def start(self, callback) -> None:
         try:
-            await self.connect(loop, callback)
+            await self.connect(callback)
         except Exception as exc:
             self.logger.info(f'Fail. Trying reconnect Rabbit. {exc}')
             self.logger.exception(exc)
             await asyncio.sleep(2)
-            await self.start(loop, callback)
+            await self.start(callback)
 
-    async def connect(self, loop, callback) -> None:
-        self.connection = await aio_pika.connect_robust(
-            self.amqp_address,
-            loop=loop
+    async def connect(self, callback) -> None:
+        transport, protocol = await aioamqp.connect(
+            host=config.RABBIT_HOST,
+            port=config.RABBIT_AMQP_PORT,
+            login=config.RABBIT_LOGIN,
+            password=config.RABBIT_PASSWORD,
+            login_method='AMQPLAIN',
+            heartbeat=1800
         )
 
-        async with self.connection:
-            # Creating channel
-            channel = await self.connection.channel()
-            await channel.set_qos(prefetch_count=1)
+        channel = await protocol.channel()
 
-            # Declaring queue
-            queue = await channel.declare_queue(
-                self.queue_name,
-                auto_delete=False,
-                durable=True,
+        await channel.basic_qos(prefetch_count=1,
+                                prefetch_size=0,
+                                connection_global=False)
 
-            )
+        await channel.queue_declare(queue_name=self.queue_name,
+                                    durable=True,
+                                    no_wait=True)
 
-            await queue.bind(self.exhange_name, self.queue_name)
-            # await queue.consume(callback=callback)
-            while True:
-                async with queue.iterator() as queue_iter:
-                    async for message in queue_iter:
-                        async with message.process():
-                            await callback(message.body.decode())
+        await channel.queue_bind(self.queue_name,
+                                 self.exhange_name,
+                                 routing_key=self.queue_name)
+
+        while True:
+            await channel.basic_consume(callback, queue_name=self.queue_name)

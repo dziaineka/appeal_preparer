@@ -1,8 +1,6 @@
-import multiprocessing
 from multiprocessing import shared_memory
 from sender import start
 import config
-import time
 
 
 def clear_busy_list() -> None:

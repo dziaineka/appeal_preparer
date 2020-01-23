@@ -49,9 +49,9 @@ class Sender():
 
         return logger
 
-    async def process_new_appeal(self, raw_appeal: str) -> None:
+    async def process_new_appeal(self, channel, body, envelope, properties) -> None:
         self.sending_in_progress = True
-        appeal = json.loads(raw_appeal)
+        appeal = json.loads(body)
         asyncio.ensure_future(self.async_process_new_appeal(appeal))
 
         # в этом месте мы проверяем в цикле когда параллельный поток закончит
@@ -63,6 +63,8 @@ class Sender():
         self.delete_from_busy_list(self.email_to_delete)
 
         self.current_appeal = {}
+        await channel.basic_client_ack(delivery_tag=envelope.delivery_tag)
+
         self.logger.info(f'Обращение обработано ' +
                          f'user_id: {appeal["user_id"]} ' +
                          f'appeal_id: {appeal["appeal_id"]}')
@@ -138,8 +140,8 @@ class Sender():
 
         self.stop_timer.cock_it(config.CANCEL_TIMEOUT)
 
-    async def process_bot_message(self, raw_sender_status: str) -> None:
-        data = json.loads(raw_sender_status)
+    async def process_bot_message(self, channel, body, envelope, properties) -> None:
+        data = json.loads(body)
         self.logger.info(f'Сообщение бота: {data}')
         email = self.get_value(data, 'sender_email', self.queue_from_bot)
         self.logger.info(f"Достали имейл: {email}")
@@ -171,6 +173,8 @@ class Sender():
         except RancidAppeal:
             self.logger.info("Взяли протухшую форму обращения")
             self.send_appeal()
+
+        await channel.basic_client_ack(delivery_tag=envelope.delivery_tag)
 
     def process_captcha(self,
                         captcha_text: str,
@@ -222,8 +226,8 @@ class Sender():
                                  self.queue_from_bot,
                                  config.RABBIT_AMQP_ADDRESS)
 
-        asyncio.ensure_future(bot.start(loop, self.process_bot_message))
-        asyncio.ensure_future(appeals.start(loop, self.process_new_appeal))
+        asyncio.ensure_future(bot.start(self.process_bot_message))
+        asyncio.ensure_future(appeals.start(self.process_new_appeal))
         asyncio.ensure_future(self.stop_timer.start())
 
         self.logger.info(f"Воркер стартует.")
