@@ -226,7 +226,7 @@ class Applicant:
             self.make_visible(recipient_select_field)
             recipient_select_field.click()
 
-            time.sleep(1)
+            time.sleep(2)
 
             division = self._get_element_by_xpath(
                 '//div[@id="select_container_10"]/' +
@@ -237,7 +237,7 @@ class Applicant:
             self.make_visible(division)
             division.click()
 
-            time.sleep(1)
+            time.sleep(2)
 
             self.logger.info("Выбрали отдел ГУВД")
 
