@@ -315,7 +315,7 @@ class Applicant:
             # let's try to get error message
             status, status_text = self.get_popup_info(
                 self._extract_status_appeal,
-                max_attempts=3)
+                max_attempts=6)
 
             if status == config.OK:
                 self.logger.info(status_text)
@@ -334,7 +334,7 @@ class Applicant:
 
     def get_popup_info(self,
                        extractor: Callable,
-                       max_attempts: int = 10) -> Tuple[str, str]:
+                       max_attempts: int = 15) -> Tuple[str, str]:
         text = ''
         counter = 0
         infobox = None
