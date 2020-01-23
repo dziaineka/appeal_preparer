@@ -223,10 +223,10 @@ class Sender():
                                  config.RABBIT_AMQP_ADDRESS)
 
         asyncio.ensure_future(bot.start(loop, self.process_bot_message))
+        asyncio.ensure_future(appeals.start(loop, self.process_new_appeal))
         asyncio.ensure_future(self.stop_timer.start())
 
         self.logger.info(f"Воркер стартует.")
-        await appeals.start(loop, self.process_new_appeal)
 
     async def stop_appeal_sending(self, local=False):
         self.logger.info(f"Останавливаем отправку обращения")
@@ -244,7 +244,7 @@ class Sender():
 
     def start(self):
         self.loop.run_until_complete(self.start_sender(self.loop))
-        self.loop.close()
+        self.loop.run_forever()
 
     @classmethod
     def get_value(cls, data: dict, key: str, default: Any = None) -> Any:
