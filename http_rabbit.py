@@ -1,4 +1,4 @@
-import requests
+import aiohttp
 import json
 
 import config
@@ -6,7 +6,13 @@ from exceptions import ErrorWhilePutInQueue
 
 
 class Rabbit:
-    def _send(self, exchange_name, routing_key: str, body: dict) -> None:
+    def __init__(self):
+        self._http_session = aiohttp.ClientSession()
+
+    def __del__(self):
+        self._http_session.close()
+
+    async def _send(self, exchange_name, routing_key: str, body: dict) -> None:
         url = config.RABBIT_ADDRESS + \
             f'/api/exchanges/%2F/{exchange_name}/publish'
 
@@ -17,17 +23,21 @@ class Rabbit:
             'payload_encoding': 'string'
         }
 
-        response = requests.post(url, json=data)
-
-        if response.status_code != 200:
+        try:
+            async with self._http_session.post(url, json=data) as response:
+                if response.status != 200:
+                    raise ErrorWhilePutInQueue(
+                        f'Ошибка при отправке урл в очередь: {response.reason}'
+                    )
+        except aiohttp.client_exceptions.ServerDisconnectedError:
             raise ErrorWhilePutInQueue(
-                f'Ошибка при отправке урл в очередь: {response.reason}')
+                f'Ошибка при отправке урл в очередь ServerDisconnectedError')
 
-    def send_sending_stopped(self,
-                             appeal_id: int,
-                             user_id: int,
-                             answer_queue: str,
-                             message=config.TIMEOUT_MESSAGE):
+    async def send_sending_stopped(self,
+                                   appeal_id: int,
+                                   user_id: int,
+                                   answer_queue: str,
+                                   message=config.TIMEOUT_MESSAGE):
         data = {
             'type': config.SENDING_CANCELLED,
             'appeal_id': appeal_id,
@@ -36,15 +46,15 @@ class Rabbit:
             'message': message
         }
 
-        self._send(config.RABBIT_EXCHANGE_SENDING,
-                   config.RABBIT_ROUTING_STATUS,
-                   data)
+        await self._send(config.RABBIT_EXCHANGE_SENDING,
+                         config.RABBIT_ROUTING_STATUS,
+                         data)
 
-    def send_captcha_url(self,
-                         url: str,
-                         appeal_id: int,
-                         user_id: int,
-                         answer_queue: str) -> None:
+    async def send_captcha_url(self,
+                               url: str,
+                               appeal_id: int,
+                               user_id: int,
+                               answer_queue: str) -> None:
         data = {
             'type': config.CAPTCHA_URL,
             'captcha': url,
@@ -53,16 +63,16 @@ class Rabbit:
             'answer_queue': answer_queue,
         }
 
-        self._send(config.RABBIT_EXCHANGE_SENDING,
-                   config.RABBIT_ROUTING_STATUS,
-                   data)
+        await self._send(config.RABBIT_EXCHANGE_SENDING,
+                         config.RABBIT_ROUTING_STATUS,
+                         data)
 
-    def send_status(self,
-                    user_id: int,
-                    status_code: str,
-                    answer_queue: str,
-                    appeal_id: int,
-                    text: str = '') -> None:
+    async def send_status(self,
+                          user_id: int,
+                          status_code: str,
+                          answer_queue: str,
+                          appeal_id: int,
+                          text: str = '') -> None:
         status = {
             'type': status_code,
             'user_id': user_id,
@@ -71,11 +81,11 @@ class Rabbit:
             'appeal_id': appeal_id,
         }
 
-        self._send(config.RABBIT_EXCHANGE_SENDING,
-                   config.RABBIT_ROUTING_STATUS,
-                   status)
+        await self._send(config.RABBIT_EXCHANGE_SENDING,
+                         config.RABBIT_ROUTING_STATUS,
+                         status)
 
-    def reqeue(self, body):
-        self._send(config.RABBIT_EXCHANGE_MANAGING,
-                   config.RABBIT_ROUTING_APPEAL,
-                   body)
+    async def reqeue(self, body):
+        await self._send(config.RABBIT_EXCHANGE_MANAGING,
+                         config.RABBIT_ROUTING_APPEAL,
+                         body)
