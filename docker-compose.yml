@@ -22,3 +22,5 @@ services:
       - proxynet
     ports:
       - 4444:4444
+    volumes:
+      - /dev/shm:/dev/shm
