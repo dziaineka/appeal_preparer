@@ -1,3 +1,4 @@
+from logging import LoggerAdapter
 import aiohttp
 import json
 
@@ -6,11 +7,8 @@ from exceptions import ErrorWhilePutInQueue
 
 
 class Rabbit:
-    def __init__(self):
-        self._http_session = aiohttp.ClientSession()
-
-    def __del__(self):
-        self._http_session.close()
+    def __init__(self, logger: LoggerAdapter):
+        self.logger = logger
 
     async def _send(self, exchange_name, routing_key: str, body: dict) -> None:
         url = config.RABBIT_ADDRESS + \
@@ -23,15 +21,23 @@ class Rabbit:
             'payload_encoding': 'string'
         }
 
+        await self.do_request(url, data)
+
+    async def do_request(self, url: str, data: dict):
         try:
-            async with self._http_session.post(url, json=data) as response:
-                if response.status != 200:
-                    raise ErrorWhilePutInQueue(
-                        f'Ошибка при отправке урл в очередь: {response.reason}'
-                    )
-        except aiohttp.client_exceptions.ServerDisconnectedError:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(url, json=data) as response:
+                    if response.status != 200:
+                        raise ErrorWhilePutInQueue(
+                            f'Ошибка при отправке урл в очередь: ' +
+                            f'{response.reason}'
+                        )
+                    else:
+                        self.logger.info("Ответили боту")
+        except Exception as exc:
             raise ErrorWhilePutInQueue(
-                f'Ошибка при отправке урл в очередь ServerDisconnectedError')
+                f'Ошибка при отправке урл в очередь хз {str(exc)}',
+                (url, data))
 
     async def send_sending_stopped(self,
                                    appeal_id: int,

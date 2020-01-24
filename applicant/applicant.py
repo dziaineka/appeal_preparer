@@ -33,9 +33,6 @@ class Applicant:
             pass
 
     def _get_browser(self):
-        if self.browser:
-            self.cancel()
-
         self.browser = webdriver.Remote(config.CHROME_URL,
                                         DesiredCapabilities.CHROME)
 
@@ -53,7 +50,7 @@ class Applicant:
 
         self.logger.info(f'_extract_status_captcha - {text}')
 
-        if text == 'неверно введена капча':
+        if text == 'неверный ответ':
             return config.WRONG_INPUT, text
         elif 'выслано письмо со ссылкой' in text:
             return config.OK, text
@@ -173,7 +170,6 @@ class Applicant:
 
     @wait_decorator(ElementClickInterceptedException)
     def get_captcha(self, email: str) -> str:
-        self.cancel()
         self._get_browser()
         self.logger.info("Загрузили браузер")
         self._get_captcha_site(email)
@@ -309,9 +305,6 @@ class Applicant:
                 if submit_status != config.OK:
                     return config.FAIL, status_text
         except ElementClickInterceptedException as exc:
-            # self.browser.save_screenshot(
-                # 'ElementClickInterceptedException.png')
-
             # let's try to get error message
             status, status_text = self.get_popup_info(
                 self._extract_status_appeal,
@@ -327,7 +320,7 @@ class Applicant:
             self.logger.exception(exc)
             return config.FAIL, str(exc)
         finally:
-            self.browser.quit()
+            self.cancel()
 
         self.logger.info("Успех")
         return config.OK, ''
@@ -350,7 +343,7 @@ class Applicant:
             infobox = self._get_element_by_xpath('//div[@id="info-message"]/p')
             text = infobox.text.strip()
             counter += 1
-            time.sleep(0.5)
+            time.sleep(2)
 
         return extractor(infobox)
 

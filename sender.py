@@ -1,11 +1,11 @@
 import asyncio
 from asyncio.events import AbstractEventLoop
 import amqp_rabbit
+from http_rabbit import Rabbit as HttpRabbit
 import logging
 import config
 import json
 from applicant import Applicant
-from http_rabbit import Rabbit
 import time
 from typing import Any, Optional
 from applicant.exceptions import *
@@ -20,12 +20,14 @@ class Sender():
         self.logger = self.setup_logging()
         self.applicant = Applicant(self.logger)
         self.loop = asyncio.get_event_loop()
-        self.queue_to_bot = Rabbit()
         self.sending_in_progress = False
-        self.current_appeal: dict
+        self.current_appeal: dict = {}
         self.email_to_delete = ''
         self.same_email_sleep = 1
         self.stop_timer = Timer(self.stop_appeal_sending, self.loop)
+
+    def send_to_bot(self) -> HttpRabbit:
+        return HttpRabbit(self.logger)
 
     def setup_logging(self):
         # create logger
@@ -49,7 +51,11 @@ class Sender():
 
         return logger
 
-    async def process_new_appeal(self, channel, body, envelope, properties) -> None:
+    async def process_new_appeal(self,
+                                 channel,
+                                 body,
+                                 envelope,
+                                 properties) -> None:
         self.sending_in_progress = True
         appeal = json.loads(body)
         asyncio.ensure_future(self.async_process_new_appeal(appeal))
@@ -79,7 +85,7 @@ class Sender():
             self.logger.info(f'Такой email уже отправляет - ' +
                              f'в конец очереди: {email}')
 
-            await self.queue_to_bot.reqeue(self.current_appeal)
+            await self.send_to_bot().reqeue(self.current_appeal)
             await asyncio.sleep(self.same_email_sleep)
             self.same_email_sleep = self.same_email_sleep * 2
             self.email_to_delete = ''
@@ -99,10 +105,9 @@ class Sender():
                                     appeal['user_id'],
                                     email)
         except ErrorWhilePutInQueue as exc:
-            self.logger.info(exc)
-            await self.send_captcha(appeal['appeal_id'],
-                                    appeal['user_id'],
-                                    email)
+            self.logger.error(exc.text)
+            if exc.data:
+                await self.send_to_bot().do_request(exc.data[0], exc.data[1])
 
     def new_in_busy_list(self, email: str) -> bool:
         try:
@@ -141,26 +146,35 @@ class Sender():
                            user_id: int,
                            email: str) -> None:
         self.current_captcha_url = self.applicant.get_captcha(email)
-
-        await self.queue_to_bot.send_captcha_url(self.current_captcha_url,
-                                                 appeal_id,
-                                                 user_id,
-                                                 self.queue_from_bot)
-
         self.stop_timer.cock_it(config.CANCEL_TIMEOUT)
 
-    async def process_bot_message(self, channel, body, envelope, properties) -> None:
+        await self.send_to_bot().send_captcha_url(self.current_captcha_url,
+                                                  appeal_id,
+                                                  user_id,
+                                                  self.queue_from_bot)
+
+    async def process_bot_message(self,
+                                  channel,
+                                  body,
+                                  envelope,
+                                  properties) -> None:
         data = json.loads(body)
-        self.logger.info(f'Сообщение бота: {data}')
+        self.logger.info(f'Сообщение от бота: {data}')
         email = self.get_value(data, 'sender_email', self.queue_from_bot)
         self.logger.info(f"Достали имейл: {email}")
+        user_id = data['user_id']
+        appeal_id = data['appeal_id']
+
+        # костыльчик пока бот не научится не хранить обращения, а парсить
+        if not self.current_appeal \
+                or self.current_appeal['user_id'] != user_id \
+                or self.current_appeal['appeal_id'] != appeal_id:
+            await channel.basic_client_ack(delivery_tag=envelope.delivery_tag)
+            return
 
         try:
             if data['type'] == config.CAPTCHA_TEXT:
                 self.stop_timer.delete()
-
-                await channel.basic_client_ack(
-                    delivery_tag=envelope.delivery_tag)
 
                 await self.process_captcha(data['captcha_text'],
                                            data['user_id'],
@@ -186,6 +200,10 @@ class Sender():
         except RancidAppeal:
             self.logger.info("Взяли протухшую форму обращения")
             await self.send_appeal()
+        except ErrorWhilePutInQueue as exc:
+            self.logger.error(exc.text)
+            if exc.data:
+                await self.send_to_bot().do_request(exc.data[0], exc.data[1])
         finally:
             await channel.basic_client_ack(delivery_tag=envelope.delivery_tag)
 
@@ -196,10 +214,10 @@ class Sender():
         if self.applicant.enter_captcha_and_submit(captcha_text) != config.OK:
             raise CaptchaInputError()
 
-        await self.queue_to_bot.send_status(user_id,
-                                            config.CAPTCHA_OK,
-                                            self.queue_from_bot,
-                                            appeal_id)
+        await self.send_to_bot().send_status(user_id,
+                                             config.CAPTCHA_OK,
+                                             self.queue_from_bot,
+                                             appeal_id)
 
         await self.send_appeal()
 
@@ -220,11 +238,11 @@ class Sender():
         if status_code != config.OK:
             raise ErrorWhileSending(message)
 
-        await self.queue_to_bot.send_status(self.current_appeal['user_id'],
-                                            config.OK,
-                                            self.queue_from_bot,
-                                            self.current_appeal['appeal_id'],
-                                            message)
+        await self.send_to_bot().send_status(self.current_appeal['user_id'],
+                                             config.OK,
+                                             self.queue_from_bot,
+                                             self.current_appeal['appeal_id'],
+                                             message)
 
         self.sending_in_progress = False
 
@@ -248,12 +266,13 @@ class Sender():
     async def stop_appeal_sending(self, local=False):
         self.logger.info(f"Останавливаем отправку обращения")
         if not local:
-            await self.queue_to_bot.send_sending_stopped(
+            await self.send_to_bot().send_sending_stopped(
                 self.current_appeal['appeal_id'],
                 self.current_appeal['user_id'],
                 self.queue_from_bot
             )
 
+        self.current_appeal = {}
         self.stop_timer.delete()
         self.logger.info("Отмена")
         self.sending_in_progress = False

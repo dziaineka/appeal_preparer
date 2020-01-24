@@ -30,22 +30,20 @@ class Rabbit:
             login=config.RABBIT_LOGIN,
             password=config.RABBIT_PASSWORD,
             login_method='AMQPLAIN',
-            heartbeat=1800
+            heartbeat=65535
         )
 
         channel = await protocol.channel()
 
-        await channel.basic_qos(prefetch_count=1,
-                                prefetch_size=0,
-                                connection_global=False)
+        await channel.basic_qos(prefetch_count=1)
 
         await channel.queue_declare(queue_name=self.queue_name,
-                                    durable=True,
-                                    no_wait=True)
+                                    durable=True)
 
         await channel.queue_bind(self.queue_name,
                                  self.exhange_name,
                                  routing_key=self.queue_name)
 
-        while True:
-            await channel.basic_consume(callback, queue_name=self.queue_name)
+        await channel.basic_consume(callback,
+                                    queue_name=self.queue_name,
+                                    no_ack=False)
