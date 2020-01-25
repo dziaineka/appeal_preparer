@@ -22,6 +22,9 @@ class Rabbit:
             self.logger.exception(exc)
             await asyncio.sleep(2)
             await self.start(callback)
+        except ConnectionRefusedError:
+            await asyncio.sleep(2)
+            await self.connect(callback)
 
     async def connect(self, callback) -> None:
         transport, protocol = await aioamqp.connect(
