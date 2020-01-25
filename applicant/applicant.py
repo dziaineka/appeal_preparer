@@ -159,6 +159,10 @@ class Applicant:
             # self.browser.save_screenshot('get_element_by_id.png')
             raise BrowserError()
 
+    @wait_decorator(ElementClickInterceptedException)
+    def _get_element_by_xpath_wait(self, xpath: str):
+        return self._get_element_by_xpath(xpath)
+
     def _get_element_by_xpath(self, xpath: str):
         try:
             return self.browser.find_element_by_xpath(xpath)
@@ -222,9 +226,7 @@ class Applicant:
             self.make_visible(recipient_select_field)
             recipient_select_field.click()
 
-            time.sleep(2)
-
-            division = self._get_element_by_xpath(
+            division = self._get_element_by_xpath_wait(
                 '//div[@id="select_container_10"]/' +
                 'md-select-menu/md-content/' +
                 'md-option[starts-with(@id,"select_option_")]/' +
@@ -233,11 +235,9 @@ class Applicant:
             self.make_visible(division)
             division.click()
 
-            time.sleep(2)
-
             self.logger.info("Выбрали отдел ГУВД")
 
-            zipcode = self._get_element_by_xpath(
+            zipcode = self._get_element_by_xpath_wait(
                 '//input[@ng-model="appeal.postal_code"]')
             self.make_visible(zipcode)
             self._fill_field(zipcode, data['sender_zipcode'])
