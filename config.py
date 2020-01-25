@@ -24,7 +24,7 @@ BUSY_WORKER = 'busy_worker'
 BUSY_LIST = 'email_busy_list'
 
 # cancel timer
-CANCEL_TIMEOUT = 2  # mins
+CANCEL_TIMEOUT = 1  # mins
 TIMEOUT_MESSAGE = 'times_up'
 
 # appeal status codes
