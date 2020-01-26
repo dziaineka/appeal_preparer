@@ -169,7 +169,7 @@ class Applicant:
         except Exception as exc:
             self.logger.info(f'ОЙ _get_element_by_xpath - {str(exc)}')
             self.logger.exception(exc)
-            # self.browser.save_screenshot('get_element_by_xpath.png')
+            self.browser.save_screenshot('get_element_by_xpath.png')
             raise BrowserError()
 
     @wait_decorator(ElementClickInterceptedException)
