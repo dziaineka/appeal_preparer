@@ -159,7 +159,7 @@ class Applicant:
             # self.browser.save_screenshot('get_element_by_id.png')
             raise BrowserError()
 
-    @wait_decorator(ElementClickInterceptedException)
+    @wait_decorator(Exception, pause=1)
     def _get_element_by_xpath_wait(self, xpath: str):
         return self._get_element_by_xpath(xpath)
 
@@ -340,7 +340,9 @@ class Applicant:
                 # self.browser.save_screenshot('get_popup_info_error.png')
                 raise BrowserError
 
-            infobox = self._get_element_by_xpath('//div[@id="info-message"]/p')
+            infobox = self._get_element_by_xpath_wait(
+                '//div[@id="info-message"]/p')
+
             text = infobox.text.strip()
             counter += 1
             time.sleep(2)
