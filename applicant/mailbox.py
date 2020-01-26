@@ -2,6 +2,7 @@ import pyzmail
 import re
 import applicant.regexps as regexps
 import applicant.waiter as waiter
+from applicant.waiter import wait_decorator
 import applicant.config as config
 from imapclient import IMAPClient
 from applicant.exceptions import NoMessageFromPolice, AppealURLParsingFailed
@@ -54,16 +55,10 @@ class Mailbox:
 
         raise IndexError("Can't find letter.")
 
+    @wait_decorator(Exception, pause=1)
     def _get_messages(self, email: str, password: str) -> tuple:
-        try:
-            with self.imap(email, password) as client:
-                return self._search_mail_item(client, email)
-        except ConnectionResetError or BrokenPipeError as exc:
-            self.logger.info(f'ОЙ _get_messages - {str(exc)}')
-            self.logger.exception(exc)
-            self._get_messages(email, password)
-
-        return None, None
+        with self.imap(email, password) as client:
+            return self._search_mail_item(client, email)
 
     def get_appeal_url(self, email: str, password: str) -> str:
         try:
