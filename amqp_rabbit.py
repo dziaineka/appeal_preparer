@@ -15,16 +15,22 @@ class Rabbit:
         self.amqp_address = amqp_address
 
     async def start(self, callback) -> None:
-        try:
-            await self.connect(callback)
-        except Exception as exc:
-            self.logger.info(f'Fail. Trying reconnect Rabbit. {exc}')
-            self.logger.exception(exc)
-            await asyncio.sleep(2)
-            await self.start(callback)
-        except ConnectionRefusedError:
-            await asyncio.sleep(2)
-            await self.connect(callback)
+        connected = False
+        pause = 1
+
+        while not connected:
+            try:
+                await self.connect(callback)
+                connected = True
+                pause = 1
+                self.logger.info("Подключились к раббиту")
+            except Exception:
+                connected = False
+                self.logger.exception('Fail. Trying reconnect Rabbit.')
+                await asyncio.sleep(pause)
+
+                if pause < 30:
+                    pause *= 2
 
     async def connect(self, callback) -> None:
         transport, protocol = await aioamqp.connect(
