@@ -285,6 +285,8 @@ class Applicant:
 
                 self.logger.info("Отправили")
 
+                time.sleep(2)
+
                 submit_status, status_text = self.get_popup_info(
                     self._extract_status_sending)
 
