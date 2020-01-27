@@ -65,6 +65,7 @@ class Mailbox:
             msg_num, raw_message = waiter.wait(IndexError,
                                                self._get_messages,
                                                2,
+                                               None,
                                                email,
                                                password)
         except IndexError as exc:
