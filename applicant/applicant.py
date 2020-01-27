@@ -141,36 +141,17 @@ class Applicant:
             self.logger.exception(exc)
             field.send_keys(text)
 
+    @wait_decorator(Exception, pause=0.5, exception_to_raise=BrowserError)
     def _get_element_by_class(self, element_class: str):
-        try:
-            return self.browser.find_element_by_class_name(element_class)
-        except Exception as exc:
-            self.logger.info(f'ОЙ _get_element_by_class - {str(exc)}')
-            self.logger.exception(exc)
-            # self.browser.save_screenshot('get_element_by_class.png')
-            raise BrowserError()
+        return self.browser.find_element_by_class_name(element_class)
 
+    @wait_decorator(Exception, pause=0.5, exception_to_raise=BrowserError)
     def _get_element_by_id(self, element_id: str):
-        try:
-            return self.browser.find_element_by_id(element_id)
-        except Exception as exc:
-            self.logger.info(f'ОЙ _get_element_by_id - {str(exc)}')
-            self.logger.exception(exc)
-            # self.browser.save_screenshot('get_element_by_id.png')
-            raise BrowserError()
+        return self.browser.find_element_by_id(element_id)
 
-    @wait_decorator(Exception, pause=1)
-    def _get_element_by_xpath_wait(self, xpath: str):
-        return self._get_element_by_xpath(xpath)
-
+    @wait_decorator(Exception, pause=0.5, exception_to_raise=BrowserError)
     def _get_element_by_xpath(self, xpath: str):
-        try:
-            return self.browser.find_element_by_xpath(xpath)
-        except Exception as exc:
-            self.logger.info(f'ОЙ _get_element_by_xpath - {str(exc)}')
-            self.logger.exception(exc)
-            self.browser.save_screenshot('get_element_by_xpath.png')
-            raise BrowserError()
+        return self.browser.find_element_by_xpath(xpath)
 
     @wait_decorator(ElementClickInterceptedException)
     def get_captcha(self, email: str) -> str:
@@ -226,7 +207,7 @@ class Applicant:
             self.make_visible(recipient_select_field)
             recipient_select_field.click()
 
-            division = self._get_element_by_xpath_wait(
+            division = self._get_element_by_xpath(
                 '//div[@id="select_container_10"]/' +
                 'md-select-menu/md-content/' +
                 'md-option[starts-with(@id,"select_option_")]/' +
@@ -237,7 +218,7 @@ class Applicant:
 
             self.logger.info("Выбрали отдел ГУВД")
 
-            zipcode = self._get_element_by_xpath_wait(
+            zipcode = self._get_element_by_xpath(
                 '//input[@ng-model="appeal.postal_code"]')
             self.make_visible(zipcode)
             self._fill_field(zipcode, data['sender_zipcode'])
@@ -337,10 +318,10 @@ class Applicant:
 
             if counter > max_attempts:
                 self.logger.error('Нет попапа')
-                # self.browser.save_screenshot('get_popup_info_error.png')
+                self.browser.save_screenshot('get_popup_info_error.png')
                 raise BrowserError
 
-            infobox = self._get_element_by_xpath_wait(
+            infobox = self._get_element_by_xpath(
                 '//div[@id="info-message"]/p')
 
             text = infobox.text.strip()
