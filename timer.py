@@ -16,7 +16,7 @@ class Timer:
     async def start(self) -> Awaitable[None]:
         while True:
             await self._check_for_overdue()
-            await asyncio.sleep(60)
+            await asyncio.sleep(30)
 
     async def _check_for_overdue(self):
         if datetime.utcnow() >= self.stop_time:
