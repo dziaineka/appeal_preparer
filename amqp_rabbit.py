@@ -47,7 +47,7 @@ class Rabbit:
         await channel.basic_qos(prefetch_count=1)
 
         await channel.queue_declare(queue_name=self.queue_name,
-                                    durable=True)
+                                    passive=True)
 
         await channel.queue_bind(self.queue_name,
                                  self.exhange_name,
