@@ -11,6 +11,7 @@ import applicant.config as config
 from applicant.exceptions import *
 from typing import Callable, Tuple
 import time
+import json
 
 
 class Applicant:
@@ -35,6 +36,8 @@ class Applicant:
     def _get_browser(self):
         self.browser = webdriver.Remote(config.CHROME_URL,
                                         DesiredCapabilities.CHROME)
+
+        # self.browser = webdriver.Chrome()
 
         self.browser.implicitly_wait(10)  # seconds
 
@@ -263,7 +266,9 @@ class Applicant:
             text = self._get_element_by_xpath(
                 '//textarea[@ng-model="appeal.text"]')
             self.make_visible(text)
-            self._fill_field(text, data['text'])
+            self.enter_appeal('//textarea[@ng-model="appeal.text"]',
+                              data['text'])
+            self._fill_field(text, " ")
 
             self.logger.info("Ввели текст")
 
@@ -305,6 +310,13 @@ class Applicant:
 
         self.logger.info("Успех")
         return config.OK, ''
+
+    @wait_decorator(Exception, pause=0.5, exception_to_raise=BrowserError)
+    def enter_appeal(self, xpath: str, appeal_text: str):
+        text_for_js = json.dumps(appeal_text, ensure_ascii=False)
+
+        self.browser.execute_script(
+            f'document.getElementById("input_20").value={text_for_js};')
 
     def get_popup_info(self,
                        extractor: Callable,
