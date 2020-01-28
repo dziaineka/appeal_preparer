@@ -204,24 +204,23 @@ class Applicant:
 
             self.logger.info("Ввели отчество")
 
-            recipient_select_field = self._get_element_by_xpath(
-                '//md-select[@ng-model="appeal.division"]')
-            self.make_visible(recipient_select_field)
-            recipient_select_field.click()
+            recipient_select_field_xpath = '//md-select[@ng-model="appeal.division"]'
 
-            division = self._get_element_by_xpath(
-                '//div[@id="select_container_10"]/' +
-                'md-select-menu/md-content/' +
-                'md-option[starts-with(@id,"select_option_")]/' +
-                f'div[@class="md-text"]/span[.="{data["police_department"]}"]')
+            division_xpath = '//div[@id="select_container_10"]/' + \
+                'md-select-menu/md-content/' + \
+                'md-option[starts-with(@id,"select_option_")]/' + \
+                f'div[@class="md-text"]/span[.="{data["police_department"]}"]'
 
-            self.make_visible(division)
-            division.click()
+            self.click_button(recipient_select_field_xpath,
+                              division_xpath)
+
+            zipcode_xpath = '//input[@ng-model="appeal.postal_code"]'
+
+            self.click_button(division_xpath, zipcode_xpath)
 
             self.logger.info("Выбрали отдел ГУВД")
 
-            zipcode = self._get_element_by_xpath(
-                '//input[@ng-model="appeal.postal_code"]')
+            zipcode = self._get_element_by_xpath(zipcode_xpath)
             self.make_visible(zipcode)
             self._fill_field(zipcode, data['sender_zipcode'])
 
@@ -273,15 +272,12 @@ class Applicant:
 
             self.attach_photos(data['violation_photo_files_paths'])
 
-            submit_button = self._get_element_by_xpath(
-                '//div[@class="col-sm-6 text-center"]/' +
-                'button[contains(@class, "md-primary")]')
-
-            self.make_visible(submit_button)
+            submit_button_xpath = '//div[@class="col-sm-6 text-center"]/' + \
+                                  'button[contains(@class, "md-primary")]'
 
             if config.ALLOW_SENDING:
-                self.click_send_button(submit_button,
-                                       '//div[@id="info-message"]/p')
+                self.click_button(submit_button_xpath,
+                                  '//div[@id="info-message"]/p')
 
                 self.logger.info("Отправили")
 
@@ -311,17 +307,19 @@ class Applicant:
         self.logger.info("Успех")
         return config.OK, ''
 
-    def click_send_button(self, submit_button, window_xpath: str):
+    def click_button(self, button_xpath: str, next_elem_xpath: str):
         sended = False
         tries = 5
 
         while not sended:
             try:
-                submit_button.click()
-                self.browser.find_element_by_xpath(window_xpath)
+                button = self._get_element_by_xpath(button_xpath)
+                self.make_visible(button)
+                button.click()
+                self.browser.find_element_by_xpath(next_elem_xpath)
                 sended = True
             except Exception:
-                self.logger.exception("click_send_button")
+                self.logger.exception("click_button")
 
                 if tries:
                     sended = False
