@@ -58,6 +58,7 @@ class Sender():
                                  properties) -> None:
         self.sending_in_progress = True
         appeal = json.loads(body)
+        self.applicant.get_browser()
         asyncio.ensure_future(self.async_process_new_appeal(appeal))
 
         # в этом месте мы проверяем в цикле когда параллельный поток закончит
@@ -70,6 +71,7 @@ class Sender():
 
         self.current_appeal = {}
         await channel.basic_client_ack(delivery_tag=envelope.delivery_tag)
+        self.applicant.quit_browser()
 
         self.logger.info(f'Обращение обработано ' +
                          f'user_id: {appeal["user_id"]} ' +
@@ -276,7 +278,6 @@ class Sender():
         self.stop_timer.delete()
         self.logger.info("Отмена")
         self.sending_in_progress = False
-        self.applicant.cancel()
 
     def start(self):
         self.loop.run_until_complete(self.start_sender(self.loop))
@@ -301,7 +302,7 @@ class Sender():
 
     def stop(self):
         self.logger.info('Суецыд')
-        self.applicant.cancel()
+        self.applicant.quit_browser()
 
 
 def run_consuming(sender):

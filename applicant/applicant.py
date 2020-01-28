@@ -19,26 +19,27 @@ class Applicant:
         self.browser = None
         self.logger = logger
 
-    def cancel(self):
+    def quit_browser(self):
         self.logger.info("Убиваем браузер")
 
         try:
             if self.browser:
                 self.browser.quit()
         except WebDriverException as exc:
-            self.logger.info(f'ОЙ cancel - {str(exc)}')
+            self.logger.info(f'ОЙ quit_browser - {str(exc)}')
         except Exception as exc:
-            self.logger.info(f'ОЙ cancel - {str(exc)}')
+            self.logger.info(f'ОЙ quit_browser - {str(exc)}')
             self.logger.exception(exc)
             pass
 
-    def _get_browser(self):
+    def get_browser(self):
         self.browser = webdriver.Remote(config.BROWSER_URL,
                                         DesiredCapabilities.FIREFOX)
 
         # self.browser = webdriver.Firefox()
 
         self.browser.implicitly_wait(10)  # seconds
+        self.logger.info("Загрузили браузер")
 
     def make_visible(self, element) -> None:
         # returns dict of X, Y coordinates
@@ -93,11 +94,11 @@ class Applicant:
         self.make_visible(captcha_field)
         self._fill_field(captcha_field, captcha_text)
 
-        submit_button = self._get_element_by_xpath(
-            '//div[@class="col-sm-6"]/button[contains(@class, "md-primary")]')
+        submit_button_xpath = \
+            '//div[@class="col-sm-6"]/button[contains(@class, "md-primary")]'
 
-        self.make_visible(submit_button)
-        submit_button.click()
+        self.click_button(submit_button_xpath,
+                          '//div[@id="info-message"]/p')
 
         self.logger.info("Нажали сабмит капчи")
 
@@ -157,10 +158,8 @@ class Applicant:
 
     @wait_decorator(ElementClickInterceptedException)
     def get_captcha(self, email: str) -> str:
-        self._get_browser()
-        self.logger.info("Загрузили браузер")
         self._get_captcha_site(email)
-        self.logger.info("Загрузили сайт")
+        self.logger.info("Загрузили сайт с капчей")
         return self._upload_captcha()
 
     @wait_decorator(ElementClickInterceptedException)
@@ -177,10 +176,8 @@ class Applicant:
     @wait_decorator(ElementClickInterceptedException)
     def send_appeal(self, data: dict, url: str) -> tuple:
         try:
-            self._get_browser()
             self.browser.get(url)
-
-            self.logger.info("Получили браузер")
+            self.logger.info("Загрузили сайт с формой обращения")
 
             last_name_field = self._get_element_by_xpath(
                 '//input[@data-ng-model="appeal.last_name"]')
@@ -204,7 +201,8 @@ class Applicant:
 
             self.logger.info("Ввели отчество")
 
-            recipient_select_field_xpath = '//md-select[@ng-model="appeal.division"]'
+            recipient_select_field_xpath = \
+                '//md-select[@ng-model="appeal.division"]'
 
             division_xpath = '//div[@id="select_container_10"]/' + \
                 'md-select-menu/md-content/' + \
@@ -301,8 +299,6 @@ class Applicant:
             self.logger.info(f'ОЙ send_appeal - {str(exc)}')
             self.logger.exception(exc)
             return config.FAIL, str(exc)
-        finally:
-            self.cancel()
 
         self.logger.info("Успех")
         return config.OK, ''
