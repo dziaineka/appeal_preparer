@@ -1,5 +1,4 @@
 from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import \
     ElementClickInterceptedException, \
     WebDriverException
@@ -34,10 +33,10 @@ class Applicant:
             pass
 
     def _get_browser(self):
-        self.browser = webdriver.Remote(config.CHROME_URL,
-                                        DesiredCapabilities.CHROME)
+        self.browser = webdriver.Remote(config.BROWSER_URL,
+                                        DesiredCapabilities.FIREFOX)
 
-        # self.browser = webdriver.Chrome()
+        # self.browser = webdriver.Firefox()
 
         self.browser.implicitly_wait(10)  # seconds
 

@@ -11,13 +11,13 @@ py_env:
 	)
 
 start_dev:
-	docker-compose -f docker-compose-chrome.yml up -d --build
+	docker-compose -f docker-compose-browser.yml up -d --build
 
 stop_dev:
-	docker-compose -f docker-compose-chrome.yml down
+	docker-compose -f docker-compose-browser.yml down
 
 start_prod:
-	docker-compose -f docker-compose-chrome.yml -f docker-compose.yml up -d --build
+	docker-compose -f docker-compose-browser.yml -f docker-compose.yml up -d --build
 
 stop_prod:
-	docker-compose -f docker-compose-chrome.yml -f docker-compose.yml down
+	docker-compose -f docker-compose-browser.yml -f docker-compose.yml down

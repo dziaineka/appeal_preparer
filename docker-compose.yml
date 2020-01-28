@@ -12,4 +12,4 @@ services:
     volumes:
       - /tmp/temp_files_parkun:/tmp/temp_files_parkun
     depends_on:
-      - chrome
+      - browser

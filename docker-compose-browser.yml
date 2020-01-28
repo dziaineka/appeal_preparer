@@ -5,9 +5,9 @@ networks:
     name: parkun
 
 services:
-  chrome:
-    container_name: parkun_chrome
-    image: selenium/standalone-chrome:3.141.59
+  browser:
+    container_name: parkun_browser
+    image: selenium/standalone-firefox:3.141.59
     networks:
       - proxynet
     ports:

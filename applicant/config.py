@@ -8,7 +8,7 @@ WRONG_INPUT = 'wrong_input'
 # sending protection
 ALLOW_SENDING = False
 
-# chrome options
-CHROME_HOST = 'localhost'
-CHROME_PORT = '4444'
-CHROME_URL = f'http://{CHROME_HOST}:{CHROME_PORT}/wd/hub'
+# browser options
+BROWSER_HOST = 'localhost'
+BROWSER_PORT = '4444'
+BROWSER_URL = f'http://{BROWSER_HOST}:{BROWSER_PORT}/wd/hub'
