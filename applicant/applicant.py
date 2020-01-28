@@ -281,11 +281,10 @@ class Applicant:
             self.make_visible(submit_button)
 
             if config.ALLOW_SENDING:
-                submit_button.click()
+                self.click_send_button(submit_button,
+                                       '//div[@id="info-message"]/p')
 
                 self.logger.info("Отправили")
-
-                time.sleep(2)
 
                 submit_status, status_text = self.get_popup_info(
                     self._extract_status_sending)
@@ -312,6 +311,24 @@ class Applicant:
 
         self.logger.info("Успех")
         return config.OK, ''
+
+    def click_send_button(self, submit_button, window_xpath: str):
+        sended = False
+        tries = 5
+
+        while not sended:
+            try:
+                submit_button.click()
+                self.browser.find_element_by_xpath(window_xpath)
+                sended = True
+            except Exception:
+                self.logger.exception("click_send_button")
+
+                if tries:
+                    sended = False
+                    tries -= 1
+                else:
+                    sended = True
 
     @wait_decorator(Exception, pause=0.5, exception_to_raise=BrowserError)
     def enter_appeal(self, xpath: str, appeal_text: str):
