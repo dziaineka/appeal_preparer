@@ -14,13 +14,13 @@ class Rabbit:
         self.exhange_name = exhange_name
         self.amqp_address = amqp_address
 
-    async def start(self, callback) -> None:
+    async def start(self, callback, passive=False) -> None:
         connected = False
         pause = 1
 
         while not connected:
             try:
-                await self.connect(callback)
+                await self.connect(callback, passive)
                 connected = True
                 pause = 1
                 self.logger.info("Подключились к раббиту")
@@ -32,7 +32,7 @@ class Rabbit:
                 if pause < 30:
                     pause *= 2
 
-    async def connect(self, callback) -> None:
+    async def connect(self, callback, passive=False) -> None:
         transport, protocol = await aioamqp.connect(
             host=config.RABBIT_HOST,
             port=config.RABBIT_AMQP_PORT,
@@ -47,7 +47,8 @@ class Rabbit:
         await channel.basic_qos(prefetch_count=1)
 
         await channel.queue_declare(queue_name=self.queue_name,
-                                    passive=True)
+                                    durable=True,
+                                    passive=passive)
 
         await channel.queue_bind(self.queue_name,
                                  self.exhange_name,

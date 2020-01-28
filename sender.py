@@ -268,7 +268,7 @@ class Sender():
                                  config.RABBIT_AMQP_ADDRESS)
 
         asyncio.ensure_future(bot.start(self.process_bot_message))
-        asyncio.ensure_future(appeals.start(self.process_new_appeal))
+        asyncio.ensure_future(appeals.start(self.process_new_appeal, True))
         asyncio.ensure_future(self.stop_timer.start())
 
         self.logger.info(f"Воркер стартует.")
