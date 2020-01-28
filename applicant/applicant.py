@@ -328,15 +328,21 @@ class Applicant:
         infobox = None
 
         while not text:
-            self.logger.error(f'Попытка взять текст попапа {counter}')
+            self.logger.info(f'Попытка взять текст попапа {counter}')
 
             if counter > max_attempts:
                 self.logger.error('Нет попапа')
-                self.browser.save_screenshot('get_popup_info_error.png')
+                self.browser.save_screenshot(
+                    '/tmp/temp_files_parkun/get_popup_info_error.png')
                 raise BrowserError
 
-            infobox = self._get_element_by_xpath(
-                '//div[@id="info-message"]/p')
+            try:
+                infobox = self._get_element_by_xpath(
+                    '//div[@id="info-message"]/p')
+            except Exception:
+                self.browser.save_screenshot(
+                    '/tmp/temp_files_parkun/get_popup_info_error1.png')
+                self.logger.exception("get_popup_info exc")
 
             text = infobox.text.strip()
             counter += 1
