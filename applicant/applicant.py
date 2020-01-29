@@ -215,7 +215,8 @@ class Applicant:
                 f'div[@class="md-text"]/span[.="{data["police_department"]}"]'
 
             self.click_button(recipient_select_field_xpath,
-                              division_xpath)
+                              division_xpath,
+                              ElementClickInterceptedException)
 
             zipcode_xpath = '//input[@ng-model="appeal.postal_code"]'
 
@@ -308,7 +309,9 @@ class Applicant:
         self.logger.info("Успех")
         return config.OK, ''
 
-    def click_button(self, button_xpath: str, next_elem_xpath: str):
+    def click_button(self, button_xpath: str,
+                     next_elem_xpath: str,
+                     exc=None):
         sended = False
         tries = 5
 
@@ -326,7 +329,10 @@ class Applicant:
                     sended = False
                     tries -= 1
                 else:
-                    sended = True
+                    if exc:
+                        raise exc
+                    else:
+                        sended = True
 
     @wait_decorator(Exception, pause=0.5, exception_to_raise=BrowserError)
     def enter_appeal(self, xpath: str, appeal_text: str):
