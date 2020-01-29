@@ -33,6 +33,9 @@ class Applicant:
             pass
 
     def get_browser(self):
+        if self.browser:
+            self.quit_browser()
+
         self.browser = webdriver.Remote(config.BROWSER_URL,
                                         DesiredCapabilities.FIREFOX)
 
@@ -158,6 +161,7 @@ class Applicant:
 
     @wait_decorator(ElementClickInterceptedException)
     def get_captcha(self, email: str) -> str:
+        self.get_browser()
         self._get_captcha_site(email)
         self.logger.info("Загрузили сайт с капчей")
         return self._upload_captcha()
@@ -176,6 +180,7 @@ class Applicant:
     @wait_decorator(ElementClickInterceptedException)
     def send_appeal(self, data: dict, url: str) -> tuple:
         try:
+            self.get_browser()
             self.browser.get(url)
             self.logger.info("Загрузили сайт с формой обращения")
 
