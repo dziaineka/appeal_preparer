@@ -24,7 +24,7 @@ class Timer:
             self.delete()
 
     def cock_it(self, timeout: float) -> None:
-        self.stop_time = datetime.utcnow() + timedelta(minutes=timeout)
+        self.stop_time = datetime.utcnow() + timedelta(seconds=timeout)
 
     def delete(self) -> None:
         self.stop_time = self.far_far_future
