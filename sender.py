@@ -12,6 +12,7 @@ from applicant.exceptions import *
 from exceptions import *
 from multiprocessing import shared_memory
 from timer import Timer
+from captcha_solver import CaptchaSolver
 
 
 class Sender():
@@ -25,6 +26,7 @@ class Sender():
         self.email_to_delete = ''
         self.same_email_sleep = 1
         self.stop_timer = Timer(self.stop_appeal_sending, self.loop)
+        self.captcha_solver = CaptchaSolver()
 
     def send_to_bot(self) -> HttpRabbit:
         return HttpRabbit(self.logger)
@@ -98,9 +100,20 @@ class Sender():
         self.logger.info(f"Достали имейл: {email}")
 
         try:
-            await self.send_captcha(appeal['appeal_id'],
-                                    appeal['user_id'],
-                                    email)
+            captcha_solution = await self.solve_captcha(appeal['appeal_id'],
+                                                        appeal['user_id'],
+                                                        email)
+            if captcha_solution is None:
+                self.logger.info("Капча не распозналась =(")
+                await self.send_captcha(appeal['appeal_id'],
+                                        appeal['user_id'],
+                                        email)
+            else:
+                self.logger.info("Капча распозналась.")
+                await self.process_captcha(captcha_solution,
+                                           appeal['user_id'],
+                                           appeal['appeal_id'],
+                                           silent=True)
         except BrowserError:
             self.logger.info("Фейл браузинга")
             await self.send_captcha(appeal['appeal_id'],
@@ -152,13 +165,21 @@ class Sender():
                            appeal_id: int,
                            user_id: int,
                            email: str) -> None:
-        self.current_captcha_url = self.applicant.get_captcha(email)
+        captcha = self.applicant.get_png_captcha(email)
         self.stop_timer.cock_it(config.CANCEL_TIMEOUT)
 
-        await self.send_to_bot().send_captcha_url(self.current_captcha_url,
+        await self.send_to_bot().send_captcha_url(captcha,
                                                   appeal_id,
                                                   user_id,
                                                   self.queue_from_bot)
+
+    async def solve_captcha(self,
+                            appeal_id: int,
+                            user_id: int,
+                            email: str) -> Optional[str]:
+        svg_captcha = self.applicant.get_svg_captcha(email)
+
+        return await self.captcha_solver.solve(svg_captcha)
 
     async def process_bot_message(self,
                                   channel,
@@ -220,14 +241,16 @@ class Sender():
     async def process_captcha(self,
                               captcha_text: str,
                               user_id: int,
-                              appeal_id: int) -> None:
+                              appeal_id: int,
+                              silent=False) -> None:
         if self.applicant.enter_captcha_and_submit(captcha_text) != config.OK:
             raise CaptchaInputError()
 
-        await self.send_to_bot().send_status(user_id,
-                                             config.CAPTCHA_OK,
-                                             self.queue_from_bot,
-                                             appeal_id)
+        if not silent:
+            await self.send_to_bot().send_status(user_id,
+                                                 config.CAPTCHA_OK,
+                                                 self.queue_from_bot,
+                                                 appeal_id)
 
         await self.send_appeal()
 

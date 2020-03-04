@@ -20,6 +20,9 @@ RABBIT_QUEUE_TO_BOT = 'sending_status'
 FREE_WORKER = 'free_worker'
 BUSY_WORKER = 'busy_worker'
 
+# captcha solver
+CAPTCHA_SOLVER_HOST = 'http://localhost:5000'
+
 # email busy list
 BUSY_LIST = 'email_busy_list'
 

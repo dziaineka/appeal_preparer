@@ -1,0 +1,30 @@
+version: '3.5'
+
+networks:
+  proxynet:
+    name: parkun
+
+services:
+  browser:
+    container_name: parkun_browser
+    image: selenium/standalone-firefox:3.141.59
+    networks:
+      - proxynet
+    ports:
+      - 4444:4444
+    restart: always
+    volumes:
+      - /dev/shm:/dev/shm
+
+  captcha_solver:
+    container_name: parkun_captcha_solver
+    image: andreidrang/mvd.gov.by-captcha-back
+    command: bash -c "cd src/ && gunicorn --bind 0.0.0.0:5000 --workers=1 wsgi:app --reload"
+    restart: always
+    networks:
+      - proxynet
+    ports:
+      - 5000:5000
+    environment:
+      - SENTRY_ENVIRONMENT=prod
+      - SENTRY_NAME=prod

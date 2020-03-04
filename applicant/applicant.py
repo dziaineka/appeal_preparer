@@ -160,11 +160,38 @@ class Applicant:
         return self.browser.find_element_by_xpath(xpath)
 
     @wait_decorator(ElementClickInterceptedException)
-    def get_captcha(self, email: str) -> str:
+    def get_png_captcha(self, email: str) -> str:
         self.get_browser()
         self._get_captcha_site(email)
         self.logger.info("Загрузили сайт с капчей")
         return self._upload_captcha()
+
+    @wait_decorator(ElementClickInterceptedException)
+    def get_svg_captcha(self, email: str) -> str:
+        self.get_browser()
+        self._get_captcha_site(email)
+        self.logger.info("Загрузили сайт с капчей")
+        return self._get_captcha_svg()
+
+    def _get_captcha_svg(self) -> str:
+        web_elements = self.browser.find_elements_by_xpath(
+            '//div[@class="col-sm-6"]/div[2]/*[name()="svg"]/*[name()="path"]')
+
+        html_elements = map(lambda element: element.get_attribute('outerHTML'),
+                            web_elements)
+
+        purified_svg_elements = filter(
+            lambda element: 'fill="none"' not in element,
+            html_elements)
+
+        svg_image = ""
+        svg_image += ('<svg xmlns="http://www.w3.org/2000/svg" ' +
+                      'width="150" height="50" viewBox="0,0,150,50">')
+        for element in purified_svg_elements:
+            svg_image += element
+        svg_image += "</svg>"
+
+        return svg_image
 
     @wait_decorator(ElementClickInterceptedException)
     def request_appeal_url(self, email: str, password: str) -> str:
