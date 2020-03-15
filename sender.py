@@ -60,6 +60,7 @@ class Sender():
                                  properties) -> None:
         self.sending_in_progress = True
         appeal = json.loads(body)
+        self.convert_recipient(appeal['appeal'])
         self.applicant.get_browser()
         asyncio.ensure_future(self.async_process_new_appeal(appeal))
 
@@ -78,6 +79,18 @@ class Sender():
         self.logger.info(f'Обращение обработано ' +
                          f'user_id: {appeal["user_id"]} ' +
                          f'appeal_id: {appeal["appeal_id"]}')
+
+    def convert_recipient(self, appeal: dict) -> None:
+        department = appeal['police_department']
+        appeal['police_subdepartment'] = None
+
+        if department in config.DEPARTMENT_NAMES:
+            appeal['police_department'] = config.DEPARTMENT_NAMES[department]
+        elif department in config.MINSK_DEPARTMENT_NAMES:
+            appeal['police_department'] = config.DEPARTMENT_NAMES[config.MINSK]
+
+            appeal['police_subdepartment'] = \
+                config.MINSK_DEPARTMENT_NAMES[department]
 
     async def async_process_new_appeal(self, appeal: dict) -> None:
         self.logger.info(f'Новое обращение: {appeal}')

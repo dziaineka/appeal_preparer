@@ -233,7 +233,7 @@ class Applicant:
 
             self.logger.info("Ввели отчество")
 
-            recipient_select_field_xpath = \
+            division_select_field_xpath = \
                 '//md-select[@ng-model="appeal.division"]'
 
             division_xpath = '//div[@id="select_container_10"]/' + \
@@ -241,13 +241,28 @@ class Applicant:
                 'md-option[starts-with(@id,"select_option_")]/' + \
                 f'div[@class="md-text"]/span[.="{data["police_department"]}"]'
 
-            self.click_button(recipient_select_field_xpath,
+            self.click_button(division_select_field_xpath,
                               division_xpath,
                               ElementClickInterceptedException)
 
+            subdivision_select_field_xpath = \
+                '//md-select[@ng-model="appeal.subdivision"]'
+
+            self.click_button(division_xpath, subdivision_select_field_xpath)
             zipcode_xpath = '//input[@ng-model="appeal.postal_code"]'
 
-            self.click_button(division_xpath, zipcode_xpath)
+            if data['police_subdepartment']:
+                subdivision_xpath = '//div[@id="select_container_12"]/' + \
+                    'md-select-menu/md-content/' + \
+                    'md-option[starts-with(@id,"select_option_")]/' + \
+                    f'div[@class="md-text"]/' + \
+                    f'span[.="{data["police_subdepartment"]}"]'
+
+                self.click_button(subdivision_select_field_xpath,
+                                  subdivision_xpath,
+                                  ElementClickInterceptedException)
+
+                self.click_button(subdivision_xpath, zipcode_xpath)
 
             self.logger.info("Выбрали отдел ГУВД")
 

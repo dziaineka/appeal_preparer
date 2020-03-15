@@ -62,3 +62,43 @@ EMAILS = [
     'mail8@example.com',
     'mail9@example.com',
 ]
+
+# Recipients
+CENTRALNY = 'centralny'
+SAVIECKI = 'saviecki'
+PIERSAMAJSKI = 'piersamajski'
+PARTYZANSKI = 'partyzanski'
+ZAVODSKI = 'zavodski'
+LENINSKI = 'leninski'
+KASTRYCNICKI = 'kastrycnicki'
+MASKOUSKI = 'maskouski'
+FRUNZIENSKI = 'frunzienski'
+MINSK = 'minsk'
+BREST_REGION = 'brest_region'
+VITSEBSK_REGION = 'vitsebsk_region'
+HOMEL_REGION = 'homel_region'
+HRODNA_REGION = 'hrodna_region'
+MINSK_REGION = 'minsk_region'
+MAHILEU_REGION = 'mahileu_region'
+
+DEPARTMENT_NAMES = {
+    MINSK: 'ГУВД Мингорисполкома',
+    BREST_REGION: 'УВД Брестского облисполкома',
+    VITSEBSK_REGION: 'УВД Витебского облисполкома',
+    HOMEL_REGION: 'УВД Гомельского облисполкома',
+    HRODNA_REGION: 'УВД Гродненского облисполкома',
+    MINSK_REGION: 'УВД Минского облисполкома',
+    MAHILEU_REGION: 'УВД Могилевского облисполкома',
+}
+
+MINSK_DEPARTMENT_NAMES = {
+    CENTRALNY: 'Центральное РУВД',
+    SAVIECKI: 'Советское РУВД',
+    PIERSAMAJSKI: 'Первомайское РУВД',
+    PARTYZANSKI: 'Партизанское РУВД',
+    ZAVODSKI: 'Заводское РУВД',
+    LENINSKI: 'Ленинское РУВД',
+    KASTRYCNICKI: 'Октябрьское РУВД',
+    MASKOUSKI: 'Московское РУВД',
+    FRUNZIENSKI: 'Фрунзенское РУВД',
+}
