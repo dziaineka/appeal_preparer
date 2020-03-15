@@ -39,7 +39,8 @@ class Applicant:
         self.browser = webdriver.Remote(config.BROWSER_URL,
                                         DesiredCapabilities.FIREFOX)
 
-        # self.browser = webdriver.Firefox()
+        # self.browser = webdriver.Firefox(
+        #     executable_path=r'/home/skaborik/Programs/geckodriver/geckodriver')
 
         self.browser.implicitly_wait(10)  # seconds
         self.logger.info("Загрузили браузер")
