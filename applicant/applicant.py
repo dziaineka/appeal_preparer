@@ -1,13 +1,14 @@
 from selenium import webdriver
 from selenium.common.exceptions import \
     ElementClickInterceptedException, \
-    WebDriverException
+    WebDriverException, \
+    TimeoutException
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from applicant.mailbox import Mailbox
 from applicant.waiter import wait_decorator
 import requests
 import applicant.config as config
-from applicant.exceptions import *
+from applicant.exceptions import BrowserError, RancidAppeal
 from typing import Callable, Tuple
 import time
 import json
@@ -36,11 +37,18 @@ class Applicant:
         if self.browser:
             self.quit_browser()
 
-        self.browser = webdriver.Remote(config.BROWSER_URL,
-                                        DesiredCapabilities.FIREFOX)
+        try:
+            self.browser = webdriver.Remote(config.BROWSER_URL,
+                                            DesiredCapabilities.FIREFOX)
 
-        # self.browser = webdriver.Firefox(
-        #     executable_path=r'/home/skaborik/Programs/geckodriver/geckodriver')
+            # geckodriver_path = \
+            #     r'/home/skaborik/Programs/geckodriver/geckodriver'
+
+            # self.browser = webdriver.Firefox(
+            #     executable_path=)
+        except TimeoutException:
+            self.logger.info("Не загрузили браузер")
+            raise BrowserError
 
         self.browser.implicitly_wait(10)  # seconds
         self.logger.info("Загрузили браузер")

@@ -136,7 +136,7 @@ class Sender():
             self.logger.error(exc.text)
             if exc.data:
                 await self.send_to_bot().do_request(exc.data[0], exc.data[1])
-        except Exception as exc:
+        except Exception:
             self.logger.exception('ОЙ async_process_new_appeal')
             await self.send_captcha(appeal['appeal_id'],
                                     appeal['user_id'],
@@ -245,7 +245,7 @@ class Sender():
             self.logger.error(exc.text)
             if exc.data:
                 await self.send_to_bot().do_request(exc.data[0], exc.data[1])
-        except Exception as exc:
+        except Exception:
             self.logger.exception('ОЙ process_bot_message')
             await self.send_captcha(data['appeal_id'], data['user_id'], email)
         finally:

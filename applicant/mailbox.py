@@ -31,9 +31,8 @@ class Mailbox:
         urls = self.re_appeal_url.findall(html)
         try:
             return urls[0][0].replace('amp;', '')
-        except IndexError as exc:
-            self.logger.info(f'ОЙ _extract_appeal_url - {str(exc)}')
-            self.logger.exception(exc)
+        except IndexError:
+            self.logger.exception('ОЙ _extract_appeal_url')
             return ''
 
     def _search_mail_item(self, client, email) -> tuple:
