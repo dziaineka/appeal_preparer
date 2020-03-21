@@ -55,27 +55,27 @@ class Sender():
                                  body,
                                  envelope,
                                  properties) -> None:
-        self.sending_in_progress = True
+        success = True
         appeal = json.loads(body)
         self.convert_recipient(appeal['appeal'])
-        self.applicant.get_browser()
-        asyncio.ensure_future(self.async_process_new_appeal(appeal))
 
-        # в этом месте мы проверяем в цикле когда параллельный поток закончит
-        # посылать обращение, чтобы отпустить этот поток и он мог принимать
-        # новое обращение для отправки
-        while self.sending_in_progress:
-            await asyncio.sleep(2)
+        try:
+            await self.async_process_new_appeal(appeal)
+        except Exception:
+            self.logger.exception('Что-то пошло не так')
+            success = False
 
-        self.delete_from_busy_list(self.email_to_delete)
+        if success:
+            self.current_appeal = {}
+            await channel.basic_client_ack(delivery_tag=envelope.delivery_tag)
+            self.applicant.quit_browser()
 
-        self.current_appeal = {}
-        await channel.basic_client_ack(delivery_tag=envelope.delivery_tag)
-        self.applicant.quit_browser()
-
-        self.logger.info(f'Обращение обработано ' +
-                         f'user_id: {appeal["user_id"]} ' +
-                         f'appeal_id: {appeal["appeal_id"]}')
+            self.logger.info(f'Обращение обработано ' +
+                             f'user_id: {appeal["user_id"]} ' +
+                             f'appeal_id: {appeal["appeal_id"]}')
+        else:
+            self.logger.info('Попробуем отправить еще раз')
+            await self.process_new_appeal(channel, body, envelope, properties)
 
     def convert_recipient(self, appeal: dict) -> None:
         department = appeal['police_department']
