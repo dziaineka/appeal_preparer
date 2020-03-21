@@ -1,30 +1,10 @@
-from multiprocessing import shared_memory
 from sender import start
 import config
-import multiprocessing
-import time
-
-
-def clear_busy_list() -> None:
-    try:
-        busy_list = shared_memory.ShareableList(name=config.BUSY_LIST)
-    except FileNotFoundError:
-        busy_list = shared_memory.ShareableList([], name=config.BUSY_LIST)
-
-    busy_list.shm.close()
-    busy_list.shm.unlink()
-
+import sys
+import random
 
 if __name__ == '__main__':
-    clear_busy_list()
-    jobs = []
-
-    # for email in config.EMAILS:
-    #     start(email)
-
-    for email in config.EMAILS:
-        p = multiprocessing.Process(target=start,
-                                    args=(email,))
-        jobs.append(p)
-        p.start()
-        time.sleep(3)
+    try:
+        start(random.choice(config.EMAILS))
+    except Exception:
+        sys.exit('reboot needed')

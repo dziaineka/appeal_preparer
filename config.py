@@ -23,9 +23,6 @@ BUSY_WORKER = 'busy_worker'
 # captcha solver
 CAPTCHA_SOLVER_HOST = 'http://localhost:5000'
 
-# email busy list
-BUSY_LIST = 'email_busy_list'
-
 # cancel timer
 CANCEL_TIMEOUT = 40  # seconds
 TIMEOUT_MESSAGE = 'times_up'

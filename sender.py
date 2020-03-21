@@ -21,10 +21,7 @@ class Sender():
         self.logger = self.setup_logging()
         self.applicant = Applicant(self.logger)
         self.loop = asyncio.get_event_loop()
-        self.sending_in_progress = False
         self.current_appeal: dict = {}
-        self.email_to_delete = ''
-        self.same_email_sleep = 1
         self.stop_timer = Timer(self.stop_appeal_sending, self.loop)
         self.captcha_solver = CaptchaSolver()
 
@@ -96,20 +93,6 @@ class Sender():
         self.logger.info(f'Новое обращение: {appeal}')
         email = self.get_value(appeal, 'sender_email', self.queue_from_bot)
         self.current_appeal = appeal
-        self.email_to_delete = email
-
-        if not self.new_in_busy_list(email):
-            self.logger.info(f'Такой email уже отправляет - ' +
-                             f'в конец очереди: {email}')
-
-            await self.send_to_bot().reqeue(self.current_appeal)
-            await asyncio.sleep(self.same_email_sleep)
-            self.same_email_sleep = self.same_email_sleep * 2
-            self.email_to_delete = ''
-            self.sending_in_progress = False
-            return
-
-        self.same_email_sleep = 1
         self.logger.info(f"Достали имейл: {email}")
 
         try:
@@ -141,38 +124,6 @@ class Sender():
             await self.send_captcha(appeal['appeal_id'],
                                     appeal['user_id'],
                                     email)
-
-    def new_in_busy_list(self, email: str) -> bool:
-        try:
-            busy_list = shared_memory.ShareableList(name=config.BUSY_LIST)
-        except FileNotFoundError:
-            busy_list = shared_memory.ShareableList([], name=config.BUSY_LIST)
-
-        if email in busy_list:
-            return False
-        else:
-            new_list = list(busy_list)
-            new_list.append(email)
-            busy_list.shm.close()
-            busy_list.shm.unlink()
-            shared_memory.ShareableList(new_list, name=config.BUSY_LIST)
-            return True
-
-    def delete_from_busy_list(self, email: str) -> None:
-        try:
-            busy_list = shared_memory.ShareableList(name=config.BUSY_LIST)
-        except FileNotFoundError:
-            busy_list = shared_memory.ShareableList([], name=config.BUSY_LIST)
-
-        if email in busy_list:
-            new_list = list(busy_list)
-
-            while email in new_list:
-                new_list.remove(email)
-
-            busy_list.shm.close()
-            busy_list.shm.unlink()
-            shared_memory.ShareableList(new_list, name=config.BUSY_LIST)
 
     async def send_captcha(self,
                            appeal_id: int,
@@ -290,8 +241,6 @@ class Sender():
                                              self.current_appeal['appeal_id'],
                                              message)
 
-        self.sending_in_progress = False
-
     async def start_sender(self, loop: AbstractEventLoop) -> None:
         appeals = amqp_rabbit.Rabbit(self.logger,
                                      config.RABBIT_EXCHANGE_MANAGING,
@@ -321,7 +270,6 @@ class Sender():
         self.current_appeal = {}
         self.stop_timer.delete()
         self.logger.info("Отмена")
-        self.sending_in_progress = False
 
     def start(self):
         self.loop.run_until_complete(self.start_sender(self.loop))
@@ -350,14 +298,12 @@ class Sender():
 
 
 def run_consuming(sender):
-    while True:
-        try:
-            sender.start()
-        except Exception as exc:
-            sender.logger.info(f'ОЙ start - {str(exc)}')
-            sender.logger.exception(exc)
-            sender.stop()
-            time.sleep(2)
+    try:
+        sender.start()
+    except Exception:
+        sender.logger.exception('ОЙ start')
+        sender.stop()
+        raise
 
 
 def start(email: str):
