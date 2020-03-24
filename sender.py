@@ -21,9 +21,13 @@ class Sender():
         self.logger = self.setup_logging()
         self.applicant = Applicant(self.logger)
         self.loop = asyncio.get_event_loop()
-        self.current_appeal: dict = {}
+        self.current_appeal: Optional[dict] = None
         self.stop_timer = Timer(self.stop_appeal_sending, self.loop)
         self.captcha_solver = CaptchaSolver()
+        self.user_captcha_text: Optional[str] = None
+
+    def sending_in_progress(self):
+        return self.current_appeal is not None
 
     def send_to_bot(self) -> HttpRabbit:
         return HttpRabbit(self.logger)
@@ -60,13 +64,13 @@ class Sender():
         self.convert_recipient(appeal['appeal'])
 
         try:
-            await self.async_process_new_appeal(appeal)
+            success = await self.async_process_new_appeal(appeal)
         except Exception:
             self.logger.exception('Что-то пошло не так')
             success = False
 
         if success:
-            self.current_appeal = {}
+            self.current_appeal = None
             await channel.basic_client_ack(delivery_tag=envelope.delivery_tag)
             self.applicant.quit_browser()
 
@@ -89,12 +93,39 @@ class Sender():
             appeal['police_subdepartment'] = \
                 config.MINSK_DEPARTMENT_NAMES[department]
 
-    async def async_process_new_appeal(self, appeal: dict) -> None:
+    async def async_process_new_appeal(self, appeal: dict) -> bool:
         self.logger.info(f'Новое обращение: {appeal}')
-        email = self.get_value(appeal, 'sender_email', self.queue_from_bot)
+
+        email: str = self.get_value(appeal,
+                                    'sender_email',
+                                    self.queue_from_bot)
+
         self.current_appeal = appeal
         self.logger.info(f"Достали имейл: {email}")
 
+        proceed, success, captcha_text = await self.get_captcha_text(appeal,
+                                                                     email)
+
+        if not proceed:
+            return success
+
+        proceed = await self.process_captcha(captcha_text,
+                                             appeal['user_id'],
+                                             appeal['appeal_id'],
+                                             silent=True)
+        if not proceed:
+            return False
+
+        proceed, url = self.get_appeal_url()
+
+        if not proceed:
+            return False
+
+        return await self.send_appeal(url)
+
+    async def get_captcha_text(self,
+                               appeal: dict,
+                               email: str) -> Tuple[bool, bool, str]:
         try:
             captcha_solution = await self.solve_captcha(appeal['appeal_id'],
                                                         appeal['user_id'],
@@ -104,26 +135,34 @@ class Sender():
                 await self.send_captcha(appeal['appeal_id'],
                                         appeal['user_id'],
                                         email)
+
+                cancel, captcha_solution = \
+                    await self.wait_for_input_or_cancel()
+
+                if cancel:
+                    return False, True, ''
             else:
                 self.logger.info("Капча распозналась.")
-                await self.process_captcha(captcha_solution,
-                                           appeal['user_id'],
-                                           appeal['appeal_id'],
-                                           silent=True)
+
+            return True, True, captcha_solution
         except BrowserError:
             self.logger.info("Фейл браузинга")
-            await self.send_captcha(appeal['appeal_id'],
-                                    appeal['user_id'],
-                                    email)
-        except ErrorWhilePutInQueue as exc:
-            self.logger.error(exc.text)
-            if exc.data:
-                await self.send_to_bot().do_request(exc.data[0], exc.data[1])
+            return False, False, ''
         except Exception:
-            self.logger.exception('ОЙ async_process_new_appeal')
-            await self.send_captcha(appeal['appeal_id'],
-                                    appeal['user_id'],
-                                    email)
+            self.logger.exception('ОЙ get_captcha_text')
+            return False, False, ''
+
+    async def wait_for_input_or_cancel(self) -> Tuple[bool, str]:
+        while True:
+            if not self.sending_in_progress():
+                return True, ''
+
+            if self.user_captcha_text:
+                text = self.user_captcha_text
+                self.user_captcha_text = None
+                return False, text
+
+            await asyncio.sleep(2)
 
     async def send_captcha(self,
                            appeal_id: int,
@@ -132,10 +171,15 @@ class Sender():
         captcha = self.applicant.get_png_captcha(email)
         self.stop_timer.cock_it(config.CANCEL_TIMEOUT)
 
-        await self.send_to_bot().send_captcha_url(captcha,
-                                                  appeal_id,
-                                                  user_id,
-                                                  self.queue_from_bot)
+        try:
+            await self.send_to_bot().send_captcha_url(captcha,
+                                                      appeal_id,
+                                                      user_id,
+                                                      self.queue_from_bot)
+        except ErrorWhilePutInQueue as exc:
+            self.logger.error(exc.text)
+            if exc.data:
+                await self.send_to_bot().do_request(exc.data[0], exc.data[1])
 
     async def solve_captcha(self,
                             appeal_id: int,
@@ -164,61 +208,65 @@ class Sender():
             await channel.basic_client_ack(delivery_tag=envelope.delivery_tag)
             return
 
-        try:
-            if data['type'] == config.CAPTCHA_TEXT:
-                self.stop_timer.delete()
+        if data['type'] == config.CAPTCHA_TEXT:
+            self.stop_timer.delete()
+            self.user_captcha_text = data['captcha_text']
 
-                await self.process_captcha(data['captcha_text'],
-                                           data['user_id'],
-                                           data['appeal_id'])
+        elif data['type'] == config.CANCEL:
+            await self.stop_appeal_sending(local=True)
 
-            elif data['type'] == config.CANCEL:
-                await self.stop_appeal_sending(local=True)
-        except CaptchaInputError:
-            self.logger.info("Фейл капчи")
-            await self.send_captcha(data['appeal_id'], data['user_id'], email)
-        except NoMessageFromPolice:
-            self.logger.info("Фейл почты. Не нашлось письмо.")
-            await self.send_captcha(data['appeal_id'], data['user_id'], email)
-        except AppealURLParsingFailed:
-            self.logger.info("Не удалось распарсить урл из письма.")
-            await self.send_captcha(data['appeal_id'], data['user_id'], email)
-        except ErrorWhileSending:
-            self.logger.info("Фейл во время отправки")
-            await self.send_captcha(data['appeal_id'], data['user_id'], email)
-        except BrowserError:
-            self.logger.info("Фейл браузинга")
-            await self.send_captcha(data['appeal_id'], data['user_id'], email)
-        except RancidAppeal:
-            self.logger.info("Взяли протухшую форму обращения")
-            await self.send_appeal()
-        except ErrorWhilePutInQueue as exc:
-            self.logger.error(exc.text)
-            if exc.data:
-                await self.send_to_bot().do_request(exc.data[0], exc.data[1])
-        except Exception:
-            self.logger.exception('ОЙ process_bot_message')
-            await self.send_captcha(data['appeal_id'], data['user_id'], email)
-        finally:
-            await channel.basic_client_ack(delivery_tag=envelope.delivery_tag)
+        await channel.basic_client_ack(delivery_tag=envelope.delivery_tag)
 
     async def process_captcha(self,
                               captcha_text: str,
                               user_id: int,
                               appeal_id: int,
-                              silent=False) -> None:
+                              silent=False) -> bool:
         if self.applicant.enter_captcha_and_submit(captcha_text) != config.OK:
-            raise CaptchaInputError()
+            self.logger.info("Капча не подошла")
+            return False
 
         if not silent:
             await self.send_to_bot().send_status(user_id,
                                                  config.CAPTCHA_OK,
                                                  self.queue_from_bot,
                                                  appeal_id)
+        return True
 
-        await self.send_appeal()
+    async def send_appeal(self, url) -> bool:
+        try:
+            status_code, message = self.applicant.send_appeal(
+                self.current_appeal['appeal'], url)
 
-    async def send_appeal(self):
+            if status_code != config.OK:
+                self.logger.info(f"Ошибка при отправке - {message}")
+                return False
+        except BrowserError:
+            self.logger.info("Фейл браузинга")
+            return False
+        except ErrorWhilePutInQueue as exc:
+            self.logger.error(exc.text)
+            if exc.data:
+                await self.send_to_bot().do_request(exc.data[0], exc.data[1])
+        except RancidAppeal:
+            self.logger.info("Взяли протухшую форму обращения")
+            proceed, url = self.get_appeal_url()
+
+            if not proceed:
+                return False
+
+            return await self.send_appeal(url)
+        except Exception:
+            self.logger.exception('ОЙ send_appeal')
+            return False
+
+        await self.send_to_bot().send_status(self.current_appeal['user_id'],
+                                             config.OK,
+                                             self.queue_from_bot,
+                                             self.current_appeal['appeal_id'])
+        return True
+
+    def get_appeal_url(self) -> Tuple[bool, str]:
         email = self.get_value(self.current_appeal,
                                'sender_email',
                                self.queue_from_bot)
@@ -226,20 +274,15 @@ class Sender():
         password = self.get_value(self.current_appeal,
                                   'sender_email_password',
                                   config.EMAIL_PWD)
-
-        url = self.applicant.get_appeal_url(email, password)
-
-        status_code, message = self.applicant.send_appeal(
-            self.current_appeal['appeal'], url)
-
-        if status_code != config.OK:
-            raise ErrorWhileSending(message)
-
-        await self.send_to_bot().send_status(self.current_appeal['user_id'],
-                                             config.OK,
-                                             self.queue_from_bot,
-                                             self.current_appeal['appeal_id'],
-                                             message)
+        try:
+            url = self.applicant.get_appeal_url(email, password)
+            return True, url
+        except NoMessageFromPolice:
+            self.logger.info("Фейл почты. Не нашлось письмо.")
+            return False, ''
+        except AppealURLParsingFailed:
+            self.logger.info("Не удалось распарсить урл из письма.")
+            return False, ''
 
     async def start_sender(self, loop: AbstractEventLoop) -> None:
         appeals = amqp_rabbit.Rabbit(self.logger,
@@ -267,7 +310,8 @@ class Sender():
                 self.queue_from_bot
             )
 
-        self.current_appeal = {}
+        self.current_appeal = None
+        self.user_captcha_text = None
         self.stop_timer.delete()
         self.logger.info("Отмена")
 
@@ -276,7 +320,10 @@ class Sender():
         self.loop.run_forever()
 
     @classmethod
-    def get_value(cls, data: dict, key: str, default: Any = None) -> Any:
+    def get_value(cls,
+                  data: Optional[dict],
+                  key: str,
+                  default: Any = None) -> Any:
         try:
             value = data[key]
 
