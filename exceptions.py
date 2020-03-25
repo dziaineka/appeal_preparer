@@ -9,3 +9,23 @@ class ErrorWhilePutInQueue(Exception):
 
 class ErrorWhileSending(Exception):
     pass
+
+
+class NoMessageFromPolice(Exception):
+    pass
+
+
+class AppealURLParsingFailed(Exception):
+    pass
+
+
+class CaptchaInputError(Exception):
+    pass
+
+
+class BrowserError(Exception):
+    pass
+
+
+class RancidAppeal(Exception):
+    pass

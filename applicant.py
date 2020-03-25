@@ -4,19 +4,20 @@ from selenium.common.exceptions import \
     WebDriverException, \
     TimeoutException
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
-from applicant.mailbox import Mailbox
-from applicant.waiter import wait_decorator
+import emailer
+from waiter import wait_decorator
+from logging import LoggerAdapter
 import requests
-import applicant.config as config
-from applicant.exceptions import BrowserError, RancidAppeal
+import config
+from exceptions import BrowserError, RancidAppeal
 from typing import Callable, Tuple
 import time
 import json
 
 
 class Applicant:
-    def __init__(self, logger):
-        self.mailbox = Mailbox(logger)
+    def __init__(self, logger: LoggerAdapter):
+        self.mailbox = emailer.Emailer(logger)
         self.browser = None
         self.logger = logger
 

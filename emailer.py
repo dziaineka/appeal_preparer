@@ -1,16 +1,16 @@
 import pyzmail
 import re
-import applicant.regexps as regexps
-import applicant.waiter as waiter
-from applicant.waiter import wait_decorator
-import applicant.config as config
+import regexps
+from waiter import wait_decorator, wait
+import config
 from imapclient import IMAPClient
-from applicant.exceptions import NoMessageFromPolice, AppealURLParsingFailed
+from exceptions import NoMessageFromPolice, AppealURLParsingFailed
 from contextlib import contextmanager
+from logging import LoggerAdapter
 
 
-class Mailbox:
-    def __init__(self, logger):
+class Emailer:
+    def __init__(self, logger: LoggerAdapter):
         self.re_appeal_url = re.compile(
             regexps.appeal_url,
             re.MULTILINE | re.IGNORECASE | re.VERBOSE)
@@ -61,12 +61,12 @@ class Mailbox:
 
     def get_appeal_url(self, email: str, password: str) -> str:
         try:
-            msg_num, raw_message = waiter.wait(IndexError,
-                                               self._get_messages,
-                                               2,
-                                               None,
-                                               email,
-                                               password)
+            msg_num, raw_message = wait(IndexError,
+                                        self._get_messages,
+                                        2,
+                                        None,
+                                        email,
+                                        password)
         except IndexError as exc:
             self.logger.info(f'ОЙ get_appeal_url - {str(exc)}')
             self.logger.exception(exc)

@@ -6,9 +6,7 @@ import logging
 import config
 import json
 from applicant import Applicant
-import time
 from typing import Any, Optional
-from applicant.exceptions import *
 from exceptions import *
 from multiprocessing import shared_memory
 from timer import Timer

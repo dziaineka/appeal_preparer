@@ -60,6 +60,8 @@ EMAILS = [
     'mail9@example.com',
 ]
 
+IMAP_SERVER = "imap-mail.outlook.com"
+
 # Recipients
 CENTRALNY = 'centralny'
 SAVIECKI = 'saviecki'
@@ -99,3 +101,11 @@ MINSK_DEPARTMENT_NAMES = {
     MASKOUSKI: 'Московское РУВД',
     FRUNZIENSKI: 'Фрунзенское РУВД',
 }
+
+# sending protection
+ALLOW_SENDING = False
+
+# browser options
+BROWSER_HOST = 'localhost'
+BROWSER_PORT = '4444'
+BROWSER_URL = f'http://{BROWSER_HOST}:{BROWSER_PORT}/wd/hub'
