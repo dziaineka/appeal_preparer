@@ -11,13 +11,13 @@ py_env:
 	)
 
 start_dev:
-	docker-compose -f docker-compose-services.yml up -d --build
+	docker-compose -f env_docker/docker-compose-services.yml up -d --build
 
 stop_dev:
-	docker-compose -f docker-compose-services.yml down
+	docker-compose -f env_docker/docker-compose-services.yml down
 
 start_prod:
-	docker-compose -f docker-compose-services.yml -f docker-compose.yml up -d --build
+	docker-compose -f env_docker/docker-compose-services.yml -f env_docker/docker-compose.yml up -d --build
 
 stop_prod:
-	docker-compose -f docker-compose-services.yml -f docker-compose.yml down
+	docker-compose -f env_docker/docker-compose-services.yml -f env_docker/docker-compose.yml down
