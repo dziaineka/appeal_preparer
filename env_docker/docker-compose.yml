@@ -6,7 +6,7 @@ services:
     networks:
       - proxynet
     build:
-      context: ./
+      context: ../
       dockerfile: Dockerfile
     restart: always
     volumes:
