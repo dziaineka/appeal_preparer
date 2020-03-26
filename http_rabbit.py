@@ -1,15 +1,14 @@
-from logging import LoggerAdapter
+import logging
 import aiohttp
 import json
 
 import config
 from exceptions import ErrorWhilePutInQueue
 
+logger = logging.getLogger(__name__)
+
 
 class Rabbit:
-    def __init__(self, logger: LoggerAdapter):
-        self.logger = logger
-
     async def _send(self, exchange_name, routing_key: str, body: dict) -> None:
         url = config.RABBIT_ADDRESS + \
             f'/api/exchanges/%2F/{exchange_name}/publish'
@@ -34,7 +33,7 @@ class Rabbit:
                             f'{response.reason}'
                         )
                     else:
-                        self.logger.info("Ответили боту")
+                        logger.info("Ответили боту")
         except Exception as exc:
             raise ErrorWhilePutInQueue(
                 f'Ошибка при отправке урл в очередь хз {str(exc)}',

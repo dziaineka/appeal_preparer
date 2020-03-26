@@ -6,7 +6,7 @@ from selenium.common.exceptions import \
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 import emailer
 from waiter import wait_decorator
-from logging import LoggerAdapter
+import logging
 import requests
 import config
 from exceptions import BrowserError, RancidAppeal
@@ -14,24 +14,25 @@ from typing import Callable, Tuple
 import time
 import json
 
+logger = logging.getLogger(__name__)
+
 
 class Applicant:
-    def __init__(self, logger: LoggerAdapter):
-        self.mailbox = emailer.Emailer(logger)
+    def __init__(self):
+        self.mailbox = emailer.Emailer()
         self.browser = None
-        self.logger = logger
 
     def quit_browser(self):
-        self.logger.info("Убиваем браузер")
+        logger.info("Убиваем браузер")
 
         try:
             if self.browser:
                 self.browser.quit()
         except WebDriverException as exc:
-            self.logger.info(f'ОЙ quit_browser - {str(exc)}')
+            logger.info(f'ОЙ quit_browser - {str(exc).strip()}')
         except Exception as exc:
-            self.logger.info(f'ОЙ quit_browser - {str(exc)}')
-            self.logger.exception(exc)
+            logger.info(f'ОЙ quit_browser - {str(exc).strip()}')
+            logger.exception(exc)
             pass
 
     def get_browser(self):
@@ -48,11 +49,11 @@ class Applicant:
             # self.browser = webdriver.Firefox(
             #     executable_path=)
         except TimeoutException:
-            self.logger.info("Не загрузили браузер")
+            logger.info("Не загрузили браузер")
             raise BrowserError
 
         self.browser.implicitly_wait(10)  # seconds
-        self.logger.info("Загрузили браузер")
+        logger.info("Загрузили браузер")
 
     def make_visible(self, element) -> None:
         # returns dict of X, Y coordinates
@@ -64,7 +65,7 @@ class Applicant:
     def _extract_status_captcha(self, element) -> Tuple[str, str]:
         text = element.text.lower()
 
-        self.logger.info(f'_extract_status_captcha - {text}')
+        logger.info(f'_extract_status_captcha - {text}')
 
         if text == 'неверный ответ':
             return config.WRONG_INPUT, text
@@ -76,7 +77,7 @@ class Applicant:
     def _extract_status_sending(self, element) -> Tuple[str, str]:
         text = element.text.lower().strip()
 
-        self.logger.info(f'_extract_status_sending - {text}')
+        logger.info(f'_extract_status_sending - {text}')
 
         if 'ваше обращение отправлено' in text:
             return config.OK, text
@@ -86,7 +87,7 @@ class Applicant:
 
     def _extract_status_appeal(self, element) -> Tuple[str, str]:
         text = element.text.lower().strip()
-        self.logger.info(f'_extract_status_appeal - {text}')
+        logger.info(f'_extract_status_appeal - {text}')
         return config.OK, text
 
     def _upload_captcha(self) -> str:
@@ -96,7 +97,7 @@ class Applicant:
         upload_url = 'https://telegra.ph/upload'
         files = {'file': ('file', captcha.screenshot_as_png, 'image/png')}
         result = requests.post(upload_url, files=files).json()
-        self.logger.info("Нашли урл капчи")
+        logger.info("Нашли урл капчи")
         return f'https://telegra.ph{result[0]["src"]}'
 
     def enter_captcha_and_submit(self, captcha_text: str) -> str:
@@ -113,12 +114,12 @@ class Applicant:
         self.click_button(submit_button_xpath,
                           '//div[@id="info-message"]/p')
 
-        self.logger.info("Нажали сабмит капчи")
+        logger.info("Нажали сабмит капчи")
 
         submit_status, status_text = self.get_popup_info(
             self._extract_status_captcha)
 
-        self.logger.info(f'Достали статус {status_text}')
+        logger.info(f'Достали статус {status_text}')
 
         if submit_status == config.WRONG_INPUT:
             # self.browser.save_screenshot('WRONG_INPUT.png')
@@ -138,23 +139,23 @@ class Applicant:
         email_field = self._get_element_by_id("email")
         self.make_visible(email_field)
         self._fill_field(email_field, email)
-        self.logger.info("Заполнили емаил")
+        logger.info("Заполнили емаил")
 
         rules_acception = self._get_element_by_class("md-container")
         self.make_visible(rules_acception)
         rules_acception.click()
-        self.logger.info("Кликнули на галку")
+        logger.info("Кликнули на галку")
 
     def get_appeal_url(self, email: str, password: str) -> str:
         return self.mailbox.get_appeal_url(email, password)
 
     def _fill_field(self, field, text):
-        self.logger.info('Заполняем поле')
+        logger.info('Заполняем поле')
         try:
             field.send_keys(text)
         except Exception as exc:
-            self.logger.info(f'ОЙ _fill_field - {str(exc)}')
-            self.logger.exception(exc)
+            logger.info(f'ОЙ _fill_field - {str(exc)}')
+            logger.exception(exc)
             field.send_keys(text)
 
     @wait_decorator(Exception, pause=0.5, exception_to_raise=BrowserError)
@@ -173,14 +174,14 @@ class Applicant:
     def get_png_captcha(self, email: str) -> str:
         self.get_browser()
         self._get_captcha_site(email)
-        self.logger.info("Загрузили сайт с капчей")
+        logger.info("Загрузили сайт с капчей")
         return self._upload_captcha()
 
     @wait_decorator(ElementClickInterceptedException)
     def get_svg_captcha(self, email: str) -> str:
         self.get_browser()
         self._get_captcha_site(email)
-        self.logger.info("Загрузили сайт с капчей")
+        logger.info("Загрузили сайт с капчей")
         return self._get_captcha_svg()
 
     def _get_captcha_svg(self) -> str:
@@ -219,7 +220,7 @@ class Applicant:
         try:
             self.get_browser()
             self.browser.get(url)
-            self.logger.info("Загрузили сайт с формой обращения")
+            logger.info("Загрузили сайт с формой обращения")
 
             last_name_field = self._get_element_by_xpath(
                 '//input[@data-ng-model="appeal.last_name"]')
@@ -227,21 +228,21 @@ class Applicant:
             self.make_visible(last_name_field)
             self._fill_field(last_name_field, data['sender_last_name'])
 
-            self.logger.info("Ввели фамилию")
+            logger.info("Ввели фамилию")
 
             first_name_field = self._get_element_by_xpath(
                 '//input[@data-ng-model="appeal.first_name"]')
             self.make_visible(first_name_field)
             self._fill_field(first_name_field, data['sender_first_name'])
 
-            self.logger.info("Ввели имя")
+            logger.info("Ввели имя")
 
             patronymic_name_field = self._get_element_by_xpath(
                 '//input[@ng-model="appeal.middle_name"]')
             self.make_visible(patronymic_name_field)
             self._fill_field(patronymic_name_field, data['sender_patronymic'])
 
-            self.logger.info("Ввели отчество")
+            logger.info("Ввели отчество")
 
             division_select_field_xpath = \
                 '//md-select[@ng-model="appeal.division"]'
@@ -274,48 +275,48 @@ class Applicant:
 
                 self.click_button(subdivision_xpath, zipcode_xpath)
 
-            self.logger.info("Выбрали отдел ГУВД")
+            logger.info("Выбрали отдел ГУВД")
 
             zipcode = self._get_element_by_xpath(zipcode_xpath)
             self.make_visible(zipcode)
             self._fill_field(zipcode, data['sender_zipcode'])
 
-            self.logger.info("Ввели индекс")
+            logger.info("Ввели индекс")
 
             city = self._get_element_by_xpath(
                 '//input[@ng-model="appeal.city"]')
             self.make_visible(city)
             self._fill_field(city, data['sender_city'])
 
-            self.logger.info("Ввели город")
+            logger.info("Ввели город")
 
             street = self._get_element_by_xpath(
                 '//input[@ng-model="appeal.street"]')
             self.make_visible(street)
             self._fill_field(street, data['sender_street'])
 
-            self.logger.info("Ввели улицу")
+            logger.info("Ввели улицу")
 
             building = self._get_element_by_xpath(
                 '//input[@ng-model="appeal.house"]')
             self.make_visible(building)
             self._fill_field(building, data['sender_house'])
 
-            self.logger.info("Ввели дом")
+            logger.info("Ввели дом")
 
             block = self._get_element_by_xpath(
                 '//input[@ng-model="appeal.korpus"]')
             self.make_visible(block)
             self._fill_field(block, data['sender_block'])
 
-            self.logger.info("Ввели корпус")
+            logger.info("Ввели корпус")
 
             flat = self._get_element_by_xpath(
                 '//input[@ng-model="appeal.flat"]')
             self.make_visible(flat)
             self._fill_field(flat, data['sender_flat'])
 
-            self.logger.info("Ввели квартиру")
+            logger.info("Ввели квартиру")
 
             text = self._get_element_by_xpath(
                 '//textarea[@ng-model="appeal.text"]')
@@ -324,7 +325,7 @@ class Applicant:
                               data['text'])
             self._fill_field(text, " ")
 
-            self.logger.info("Ввели текст")
+            logger.info("Ввели текст")
 
             self.attach_photos(data['violation_photo_files_paths'])
 
@@ -335,7 +336,7 @@ class Applicant:
                 self.click_button(submit_button_xpath,
                                   '//div[@id="info-message"]/p')
 
-                self.logger.info("Отправили")
+                logger.info("Отправили")
 
                 submit_status, status_text = self.get_popup_info(
                     self._extract_status_sending)
@@ -349,16 +350,16 @@ class Applicant:
                 max_attempts=6)
 
             if status == config.OK:
-                self.logger.info(status_text)
+                logger.info(status_text)
                 raise RancidAppeal
 
             raise exc
         except Exception as exc:
-            self.logger.info(f'ОЙ send_appeal - {str(exc)}')
-            self.logger.exception(exc)
+            logger.info(f'ОЙ send_appeal - {str(exc)}')
+            logger.exception(exc)
             return config.FAIL, str(exc)
 
-        self.logger.info("Успех")
+        logger.info("Успех")
         return config.OK, ''
 
     def click_button(self, button_xpath: str,
@@ -375,7 +376,7 @@ class Applicant:
                 self.browser.find_element_by_xpath(next_elem_xpath)
                 sended = True
             except Exception:
-                self.logger.exception("click_button")
+                logger.exception("click_button")
 
                 if tries:
                     sended = False
@@ -401,10 +402,10 @@ class Applicant:
         infobox = None
 
         while not text:
-            self.logger.info(f'Попытка взять текст попапа {counter}')
+            logger.info(f'Попытка взять текст попапа {counter}')
 
             if counter > max_attempts:
-                self.logger.error('Нет попапа')
+                logger.error('Нет попапа')
                 self.browser.save_screenshot(
                     '/tmp/temp_files_parkun/get_popup_info_error.png')
                 raise BrowserError
@@ -415,7 +416,7 @@ class Applicant:
             except Exception:
                 self.browser.save_screenshot(
                     '/tmp/temp_files_parkun/get_popup_info_error1.png')
-                self.logger.exception("get_popup_info exc")
+                logger.exception("get_popup_info exc")
 
             text = infobox.text.strip()
             counter += 1
@@ -439,6 +440,6 @@ class Applicant:
             try:
                 self._fill_field(attach_field, path)
             except Exception as exc:
-                self.logger.info(f'Фотка не прикрепляется {path} - {str(exc)}')
+                logger.info(f'Фотка не прикрепляется {path} - {str(exc)}')
 
-        self.logger.info("Прикрепили файлы")
+        logger.info("Прикрепили файлы")

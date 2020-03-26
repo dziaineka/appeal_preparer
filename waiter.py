@@ -1,5 +1,8 @@
 import time
 from typing import Callable, Any
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def wait(exception,
@@ -14,7 +17,7 @@ def wait(exception,
             return function(*args)
         except exception as exc:
             current_exception = exc
-            print(f'ОЙ wait - {str(exc)}')
+            logger.info(f'ОЙ wait - {str(exc)}')
             time.sleep(pause)
             continue
 

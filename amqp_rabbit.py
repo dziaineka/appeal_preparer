@@ -1,16 +1,16 @@
 import aioamqp
 import asyncio
 import config
-from logging import LoggerAdapter
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Rabbit:
     def __init__(self,
-                 logger: LoggerAdapter,
                  exhange_name: str,
                  queue_name: str,
                  amqp_address: str):
-        self.logger = logger
         self.queue_name = queue_name
         self.exhange_name = exhange_name
         self.amqp_address = amqp_address
@@ -24,10 +24,10 @@ class Rabbit:
                 await self.connect(callback, passive)
                 connected = True
                 pause = 1
-                self.logger.info("Подключились к раббиту")
+                logger.info("Подключились к раббиту")
             except Exception:
                 connected = False
-                self.logger.info('Fail. Trying reconnect Rabbit.')
+                logger.info('Fail. Trying reconnect Rabbit.')
                 await asyncio.sleep(pause)
 
                 if pause < 30:

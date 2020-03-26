@@ -8,16 +8,16 @@ import json
 from applicant import Applicant
 from typing import Any, Optional
 from exceptions import *
-from multiprocessing import shared_memory
 from timer import Timer
 from captcha_solver import CaptchaSolver
+
+logger = logging.getLogger(__name__)
 
 
 class Sender():
     def __init__(self, email: str) -> None:
         self.queue_from_bot = email
-        self.logger = self.setup_logging()
-        self.applicant = Applicant(self.logger)
+        self.applicant = Applicant()
         self.loop = asyncio.get_event_loop()
         self.current_appeal: Optional[dict] = None
         self.stop_timer = Timer(self.stop_appeal_sending, self.loop)
@@ -28,29 +28,7 @@ class Sender():
         return self.current_appeal is not None
 
     def send_to_bot(self) -> HttpRabbit:
-        return HttpRabbit(self.logger)
-
-    def setup_logging(self):
-        # create logger
-        logger = logging.getLogger('appeal_sender')
-        logger.setLevel(logging.DEBUG)
-
-        extra = {'queue': self.queue_from_bot}
-
-        # create console handler with a higher log level
-        ch = logging.StreamHandler()
-        ch.setLevel(logging.DEBUG)
-
-        # create formatter and add it to the handlers
-        formatter = logging.Formatter(
-            '%(asctime)s - %(queue)s - %(levelname)s - %(message)s')
-        ch.setFormatter(formatter)
-
-        # add the handlers to the logger
-        logger.addHandler(ch)
-        logger = logging.LoggerAdapter(logger, extra)
-
-        return logger
+        return HttpRabbit()
 
     async def process_new_appeal(self,
                                  channel,
@@ -64,7 +42,7 @@ class Sender():
         try:
             success = await self.async_process_new_appeal(appeal)
         except Exception:
-            self.logger.exception('Что-то пошло не так')
+            logger.exception('Что-то пошло не так')
             success = False
 
         if success:
@@ -72,11 +50,11 @@ class Sender():
             await channel.basic_client_ack(delivery_tag=envelope.delivery_tag)
             self.applicant.quit_browser()
 
-            self.logger.info(f'Обращение обработано ' +
-                             f'user_id: {appeal["user_id"]} ' +
-                             f'appeal_id: {appeal["appeal_id"]}')
+            logger.info(f'Обращение обработано ' +
+                        f'user_id: {appeal["user_id"]} ' +
+                        f'appeal_id: {appeal["appeal_id"]}')
         else:
-            self.logger.info('Попробуем отправить еще раз')
+            logger.info('Попробуем отправить еще раз')
             await self.process_new_appeal(channel, body, envelope, properties)
 
     def convert_recipient(self, appeal: dict) -> None:
@@ -92,14 +70,14 @@ class Sender():
                 config.MINSK_DEPARTMENT_NAMES[department]
 
     async def async_process_new_appeal(self, appeal: dict) -> bool:
-        self.logger.info(f'Новое обращение: {appeal}')
+        logger.info(f'Новое обращение: {appeal}')
 
         email: str = self.get_value(appeal,
                                     'sender_email',
                                     self.queue_from_bot)
 
         self.current_appeal = appeal
-        self.logger.info(f"Достали имейл: {email}")
+        logger.info(f"Достали имейл: {email}")
 
         proceed, success, captcha_text = await self.get_captcha_text(appeal,
                                                                      email)
@@ -129,7 +107,7 @@ class Sender():
                                                         appeal['user_id'],
                                                         email)
             if captcha_solution is None:
-                self.logger.info("Капча не распозналась =(")
+                logger.info("Капча не распозналась =(")
                 await self.send_captcha(appeal['appeal_id'],
                                         appeal['user_id'],
                                         email)
@@ -140,14 +118,14 @@ class Sender():
                 if cancel:
                     return False, True, ''
             else:
-                self.logger.info("Капча распозналась.")
+                logger.info("Капча распозналась.")
 
             return True, True, captcha_solution
         except BrowserError:
-            self.logger.info("Фейл браузинга")
+            logger.info("Фейл браузинга")
             return False, False, ''
         except Exception:
-            self.logger.exception('ОЙ get_captcha_text')
+            logger.exception('ОЙ get_captcha_text')
             return False, False, ''
 
     async def wait_for_input_or_cancel(self) -> Tuple[bool, str]:
@@ -175,7 +153,7 @@ class Sender():
                                                       user_id,
                                                       self.queue_from_bot)
         except ErrorWhilePutInQueue as exc:
-            self.logger.error(exc.text)
+            logger.error(exc.text)
             if exc.data:
                 await self.send_to_bot().do_request(exc.data[0], exc.data[1])
 
@@ -193,9 +171,9 @@ class Sender():
                                   envelope,
                                   properties) -> None:
         data = json.loads(body)
-        self.logger.info(f'Сообщение от бота: {data}')
+        logger.info(f'Сообщение от бота: {data}')
         email = self.get_value(data, 'sender_email', self.queue_from_bot)
-        self.logger.info(f"Достали имейл: {email}")
+        logger.info(f"Достали имейл: {email}")
         user_id = data['user_id']
         appeal_id = data['appeal_id']
 
@@ -221,7 +199,7 @@ class Sender():
                               appeal_id: int,
                               silent=False) -> bool:
         if self.applicant.enter_captcha_and_submit(captcha_text) != config.OK:
-            self.logger.info("Капча не подошла")
+            logger.info("Капча не подошла")
             return False
 
         if not silent:
@@ -237,17 +215,17 @@ class Sender():
                 self.current_appeal['appeal'], url)
 
             if status_code != config.OK:
-                self.logger.info(f"Ошибка при отправке - {message}")
+                logger.info(f"Ошибка при отправке - {message}")
                 return False
         except BrowserError:
-            self.logger.info("Фейл браузинга")
+            logger.info("Фейл браузинга")
             return False
         except ErrorWhilePutInQueue as exc:
-            self.logger.error(exc.text)
+            logger.error(exc.text)
             if exc.data:
                 await self.send_to_bot().do_request(exc.data[0], exc.data[1])
         except RancidAppeal:
-            self.logger.info("Взяли протухшую форму обращения")
+            logger.info("Взяли протухшую форму обращения")
             proceed, url = self.get_appeal_url()
 
             if not proceed:
@@ -255,7 +233,7 @@ class Sender():
 
             return await self.send_appeal(url)
         except Exception:
-            self.logger.exception('ОЙ send_appeal')
+            logger.exception('ОЙ send_appeal')
             return False
 
         await self.send_to_bot().send_status(self.current_appeal['user_id'],
@@ -276,20 +254,18 @@ class Sender():
             url = self.applicant.get_appeal_url(email, password)
             return True, url
         except NoMessageFromPolice:
-            self.logger.info("Фейл почты. Не нашлось письмо.")
+            logger.info("Фейл почты. Не нашлось письмо.")
             return False, ''
         except AppealURLParsingFailed:
-            self.logger.info("Не удалось распарсить урл из письма.")
+            logger.info("Не удалось распарсить урл из письма.")
             return False, ''
 
     async def start_sender(self, loop: AbstractEventLoop) -> None:
-        appeals = amqp_rabbit.Rabbit(self.logger,
-                                     config.RABBIT_EXCHANGE_MANAGING,
+        appeals = amqp_rabbit.Rabbit(config.RABBIT_EXCHANGE_MANAGING,
                                      config.RABBIT_QUEUE_APPEAL,
                                      config.RABBIT_AMQP_ADDRESS)
 
-        bot = amqp_rabbit.Rabbit(self.logger,
-                                 config.RABBIT_EXCHANGE_SENDING,
+        bot = amqp_rabbit.Rabbit(config.RABBIT_EXCHANGE_SENDING,
                                  self.queue_from_bot,
                                  config.RABBIT_AMQP_ADDRESS)
 
@@ -297,10 +273,10 @@ class Sender():
         asyncio.ensure_future(appeals.start(self.process_new_appeal, True))
         asyncio.ensure_future(self.stop_timer.start())
 
-        self.logger.info(f"Воркер стартует.")
+        logger.info(f"Воркер стартует.")
 
     async def stop_appeal_sending(self, local=False):
-        self.logger.info(f"Останавливаем отправку обращения")
+        logger.info(f"Останавливаем отправку обращения")
         if not local:
             await self.send_to_bot().send_sending_stopped(
                 self.current_appeal['appeal_id'],
@@ -311,7 +287,7 @@ class Sender():
         self.current_appeal = None
         self.user_captcha_text = None
         self.stop_timer.delete()
-        self.logger.info("Отмена")
+        logger.info("Отмена")
 
     def start(self):
         self.loop.run_until_complete(self.start_sender(self.loop))
@@ -338,7 +314,7 @@ class Sender():
                 return None
 
     def stop(self):
-        self.logger.info('Суецыд')
+        logger.info('Суецыд')
         self.applicant.quit_browser()
 
 
@@ -346,7 +322,7 @@ def run_consuming(sender):
     try:
         sender.start()
     except Exception:
-        sender.logger.exception('ОЙ start')
+        logger.exception('ОЙ start')
         sender.stop()
         raise
 

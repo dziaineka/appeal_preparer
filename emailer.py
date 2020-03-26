@@ -6,16 +6,16 @@ import config
 from imapclient import IMAPClient
 from exceptions import NoMessageFromPolice, AppealURLParsingFailed
 from contextlib import contextmanager
-from logging import LoggerAdapter
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Emailer:
-    def __init__(self, logger: LoggerAdapter):
+    def __init__(self):
         self.re_appeal_url = re.compile(
             regexps.appeal_url,
             re.MULTILINE | re.IGNORECASE | re.VERBOSE)
-
-        self.logger = logger
 
     @contextmanager
     def imap(self, email: str, password: str):
@@ -32,7 +32,7 @@ class Emailer:
         try:
             return urls[0][0].replace('amp;', '')
         except IndexError:
-            self.logger.exception('ОЙ _extract_appeal_url')
+            logger.exception('ОЙ _extract_appeal_url')
             return ''
 
     def _search_mail_item(self, client, email) -> tuple:
@@ -68,8 +68,8 @@ class Emailer:
                                         email,
                                         password)
         except IndexError as exc:
-            self.logger.info(f'ОЙ get_appeal_url - {str(exc)}')
-            self.logger.exception(exc)
+            logger.info(f'ОЙ get_appeal_url - {str(exc)}')
+            logger.exception(exc)
             raise NoMessageFromPolice('На почте не найдено письма от МВД.')
 
         message = pyzmail.PyzMessage.factory(raw_message[msg_num][b'BODY[]'])
