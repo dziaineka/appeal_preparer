@@ -1,15 +1,17 @@
 import asyncio
-from asyncio.events import AbstractEventLoop
-import amqp_rabbit
-from http_rabbit import Rabbit as HttpRabbit
-import logging
-import config
 import json
-from applicant import Applicant
-from typing import Any, Optional
+import logging
+import sys
+from asyncio.events import AbstractEventLoop
 from exceptions import *
-from timer import Timer
+from typing import Any, Optional
+
+import amqp_rabbit
+import config
+from applicant import Applicant
 from captcha_solver import CaptchaSolver
+from http_rabbit import Rabbit as HttpRabbit
+from timer import Timer
 
 logger = logging.getLogger(__name__)
 
@@ -178,6 +180,7 @@ class Sender():
         appeal_id = data['appeal_id']
 
         # костыльчик пока бот не научится не хранить обращения, а парсить
+        # бот уже научился, но убирать страшно, такие дела
         if not self.current_appeal \
                 or self.current_appeal['user_id'] != user_id \
                 or self.current_appeal['appeal_id'] != appeal_id:
@@ -243,13 +246,16 @@ class Sender():
         return True
 
     def get_appeal_url(self) -> Tuple[bool, str]:
-        email = self.get_value(self.current_appeal,
-                               'sender_email',
-                               self.queue_from_bot)
+        email = self.get_value(self.current_appeal, 'sender_email', None)
 
         password = self.get_value(self.current_appeal,
                                   'sender_email_password',
                                   config.EMAIL_PWD)
+
+        if not email:
+            email = self.queue_from_bot
+            password = config.EMAIL_PWD
+
         try:
             url = self.applicant.get_appeal_url(email, password)
             return True, url
