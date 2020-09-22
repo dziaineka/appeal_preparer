@@ -22,6 +22,7 @@ BUSY_WORKER = 'busy_worker'
 
 # captcha solver
 CAPTCHA_SOLVER_HOST = 'http://localhost:5000'
+CAPTCHA_SOLVER_PATH = '/math-captcha/solve'
 
 # cancel timer
 CANCEL_TIMEOUT = 40  # seconds

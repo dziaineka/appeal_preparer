@@ -5,7 +5,8 @@ import config
 
 class CaptchaSolver:
     def __init__(self):
-        self.solve_url = config.CAPTCHA_SOLVER_HOST + '/math-captcha/solve'
+        self.solve_url = \
+            config.CAPTCHA_SOLVER_HOST + config.CAPTCHA_SOLVER_PATH
 
     async def solve(self, captcha_svg: str) -> Optional[str]:
         data = {"data": captcha_svg}
