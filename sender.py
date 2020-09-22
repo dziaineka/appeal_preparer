@@ -105,9 +105,8 @@ class Sender():
                                appeal: dict,
                                email: str) -> Tuple[bool, bool, str]:
         try:
-            captcha_solution = await self.solve_captcha(appeal['appeal_id'],
-                                                        appeal['user_id'],
-                                                        email)
+            captcha_solution = await self.solve_captcha(email)
+            
             if captcha_solution is None:
                 logger.info("Капча не распозналась =(")
                 await self.send_captcha(appeal['appeal_id'],
@@ -159,12 +158,8 @@ class Sender():
             if exc.data:
                 await self.send_to_bot().do_request(exc.data[0], exc.data[1])
 
-    async def solve_captcha(self,
-                            appeal_id: int,
-                            user_id: int,
-                            email: str) -> Optional[str]:
+    async def solve_captcha(self, email: str) -> Optional[str]:
         svg_captcha = self.applicant.get_svg_captcha(email)
-
         return await self.captcha_solver.solve(svg_captcha)
 
     async def process_bot_message(self,
