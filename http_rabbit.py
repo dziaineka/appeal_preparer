@@ -78,6 +78,7 @@ class Rabbit:
                           status_code: str,
                           answer_queue: str,
                           appeal_id: int,
+                          appeal: dict = dict(),
                           text: str = '') -> None:
         status = {
             'type': status_code,
@@ -85,6 +86,7 @@ class Rabbit:
             'text': text,
             'answer_queue': answer_queue,
             'appeal_id': appeal_id,
+            'appeal': appeal,
         }
 
         await self._send(config.RABBIT_EXCHANGE_SENDING,

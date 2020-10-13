@@ -106,7 +106,7 @@ class Sender():
                                email: str) -> Tuple[bool, bool, str]:
         try:
             captcha_solution = await self.solve_captcha(email)
-            
+
             if captcha_solution is None:
                 logger.info("Капча не распозналась =(")
                 await self.send_captcha(appeal['appeal_id'],
@@ -204,7 +204,8 @@ class Sender():
             await self.send_to_bot().send_status(user_id,
                                                  config.CAPTCHA_OK,
                                                  self.queue_from_bot,
-                                                 appeal_id)
+                                                 appeal_id,
+                                                 self.current_appeal['appeal'])
         return True
 
     async def send_appeal(self, url) -> bool:
@@ -237,7 +238,8 @@ class Sender():
         await self.send_to_bot().send_status(self.current_appeal['user_id'],
                                              config.OK,
                                              self.queue_from_bot,
-                                             self.current_appeal['appeal_id'])
+                                             self.current_appeal['appeal_id'],
+                                             self.current_appeal['appeal'])
         return True
 
     def get_appeal_url(self) -> Tuple[bool, str]:
