@@ -18,13 +18,14 @@ services:
 
   captcha_solver:
     container_name: parkun_captcha_solver
-    image: andreidrang/mvd.gov.by-captcha-back
-    command: bash -c "cd src/ && gunicorn --bind 0.0.0.0:5000 --workers=1 wsgi:app --reload"
-    restart: always
+    image: skaborik/solver
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_APP=main.py
+      - FLASK_DEBUG=0
+      - 'RUN=flask run --host=0.0.0.0 --port=5000'
+    command: flask run --host=0.0.0.0 --port=5000
     networks:
       - proxynet
-    ports:
-      - 5000:5000
-    environment:
-      - SENTRY_ENVIRONMENT=prod
-      - SENTRY_NAME=prod
+    restart: always
