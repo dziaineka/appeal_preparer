@@ -16,10 +16,6 @@ RABBIT_ROUTING_APPEAL = 'appeal_to_queue'
 RABBIT_QUEUE_APPEAL = 'appeal'
 RABBIT_QUEUE_TO_BOT = 'sending_status'
 
-# sender statuses
-FREE_WORKER = 'free_worker'
-BUSY_WORKER = 'busy_worker'
-
 # captcha solver
 CAPTCHA_SOLVER_HOST = 'http://localhost:5000'
 CAPTCHA_SOLVER_PATH = '/solve'
@@ -32,18 +28,13 @@ TIMEOUT_MESSAGE = 'times_up'
 OK = 'ok'
 FAIL = 'fail'
 WRONG_INPUT = 'wrong_input'
-CAPTCHA = 'captcha'
 CAPTCHA_URL = 'captcha_url'
 CAPTCHA_OK = 'captcha_ok'
-CAPTCHA_FAIL = 'captcha_fail'
-FREE_WORKER = 'free_worker'
-BUSY_WORKER = 'busy_worker'
+BAD_EMAIL = 'bad_email'
 
 # message types
 CAPTCHA_TEXT = 'captcha_text'
 SENDING_CANCELLED = 'sending_cancelled'
-GET_CAPTCHA = 'get_captcha'
-APPEAL = 'appeal'
 CANCEL = 'cancel'
 
 # appeals email

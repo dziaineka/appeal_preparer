@@ -1,12 +1,14 @@
-import pyzmail
-import re
-import regexps
-from waiter import wait_decorator, wait
-import config
-from imapclient import IMAPClient
-from exceptions import NoMessageFromPolice, AppealURLParsingFailed
-from contextlib import contextmanager
 import logging
+import re
+from contextlib import contextmanager
+
+import pyzmail
+from imapclient import IMAPClient
+
+import config
+import regexps
+from exceptions import AppealURLParsingFailed, NoMessageFromPolice
+from waiter import wait, wait_decorator
 
 logger = logging.getLogger(__name__)
 

@@ -1,15 +1,16 @@
 import asyncio
 import json
 import logging
-import sys
 from asyncio.events import AbstractEventLoop
-from exceptions import *
 from typing import Any, Optional
+
+from imapclient.exceptions import LoginError as EmailLoginError
 
 import amqp_rabbit
 import config
 from applicant import Applicant
 from captcha_solver import CaptchaSolver
+from exceptions import *
 from http_rabbit import Rabbit as HttpRabbit
 from timer import Timer
 
@@ -18,6 +19,8 @@ logger = logging.getLogger(__name__)
 
 class Sender():
     def __init__(self, email: str) -> None:
+        self.failed_email_user_id = 0
+        self.bot_email = email
         self.queue_from_bot = email
         self.applicant = Applicant()
         self.loop = asyncio.get_event_loop()
@@ -49,6 +52,7 @@ class Sender():
 
         if success:
             self.current_appeal = None
+            self.failed_email_user_id = 0
             await channel.basic_client_ack(delivery_tag=envelope.delivery_tag)
             self.applicant.quit_browser()
 
@@ -73,12 +77,14 @@ class Sender():
 
     async def async_process_new_appeal(self, appeal: dict) -> bool:
         logger.info(f'Новое обращение: {appeal}')
-
-        email: str = self.get_value(appeal,
-                                    'sender_email',
-                                    self.queue_from_bot)
-
         self.current_appeal = appeal
+        email: str = self.get_value(appeal, 'sender_email', self.bot_email)
+
+        if self.failed_email_user_id == appeal['user_id']:
+            email = self.bot_email
+            self.current_appeal['sender_email'] = None
+            self.current_appeal['sender_email_password'] = ''
+
         logger.info(f"Достали имейл: {email}")
 
         proceed, success, captcha_text = await self.get_captcha_text(appeal,
@@ -94,7 +100,7 @@ class Sender():
         if not proceed:
             return False
 
-        proceed, url = self.get_appeal_url()
+        proceed, url = await self.get_appeal_url()
 
         if not proceed:
             return False
@@ -169,7 +175,7 @@ class Sender():
                                   properties) -> None:
         data = json.loads(body)
         logger.info(f'Сообщение от бота: {data}')
-        email = self.get_value(data, 'sender_email', self.queue_from_bot)
+        email = self.get_value(data, 'sender_email', self.bot_email)
         logger.info(f"Достали имейл: {email}")
         user_id = data['user_id']
         appeal_id = data['appeal_id']
@@ -225,7 +231,7 @@ class Sender():
                 await self.send_to_bot().do_request(exc.data[0], exc.data[1])
         except RancidAppeal:
             logger.info("Взяли протухшую форму обращения")
-            proceed, url = self.get_appeal_url()
+            proceed, url = await self.get_appeal_url()
 
             if not proceed:
                 return False
@@ -242,7 +248,7 @@ class Sender():
                                              self.current_appeal['appeal'])
         return True
 
-    def get_appeal_url(self) -> Tuple[bool, str]:
+    async def get_appeal_url(self) -> Tuple[bool, str]:
         email = self.get_value(self.current_appeal, 'sender_email', None)
 
         password = self.get_value(self.current_appeal,
@@ -250,7 +256,7 @@ class Sender():
                                   config.EMAIL_PWD)
 
         if not email:
-            email = self.queue_from_bot
+            email = self.bot_email
             password = config.EMAIL_PWD
 
         try:
@@ -262,6 +268,22 @@ class Sender():
         except AppealURLParsingFailed:
             logger.info("Не удалось распарсить урл из письма.")
             return False, ''
+        except EmailLoginError as exc:
+            logger.info(f'Не могу залогиниться {exc}')
+            await self.maybe_tell_user_about_broken_email(email)
+            return False, ''
+
+    async def maybe_tell_user_about_broken_email(self, email: str):
+        if email == self.bot_email:
+            return
+
+        self.failed_email_user_id = self.current_appeal['user_id']
+
+        await self.send_to_bot().send_status(self.current_appeal['user_id'],
+                                             config.BAD_EMAIL,
+                                             self.queue_from_bot,
+                                             self.current_appeal['appeal_id'],
+                                             self.current_appeal['appeal'])
 
     async def start_sender(self, loop: AbstractEventLoop) -> None:
         appeals = amqp_rabbit.Rabbit(config.RABBIT_EXCHANGE_MANAGING,
