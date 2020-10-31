@@ -14,7 +14,6 @@ RABBIT_ROUTING_STATUS = 'appeal_sending_status'
 RABBIT_ROUTING_AVAILABILITY = 'sender_availability'
 RABBIT_ROUTING_APPEAL = 'appeal_to_queue'
 RABBIT_QUEUE_APPEAL = 'appeal'
-RABBIT_QUEUE_TO_BOT = 'sending_status'
 
 # captcha solver
 CAPTCHA_SOLVER_HOST = 'http://localhost:5000'
