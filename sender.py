@@ -6,12 +6,12 @@ from typing import Any, Optional
 
 from imapclient.exceptions import LoginError as EmailLoginError
 
-import amqp_rabbit
+import rabbit_amqp
 import config
 from applicant import Applicant
 from captcha_solver import CaptchaSolver
 from exceptions import *
-from http_rabbit import Rabbit as HttpRabbit
+from rabbit_http import Rabbit as HttpRabbit
 from timer import Timer
 
 logger = logging.getLogger(__name__)
@@ -286,11 +286,11 @@ class Sender():
                                              self.current_appeal['appeal'])
 
     async def start_sender(self, loop: AbstractEventLoop) -> None:
-        appeals = amqp_rabbit.Rabbit(config.RABBIT_EXCHANGE_MANAGING,
+        appeals = rabbit_amqp.Rabbit(config.RABBIT_EXCHANGE_MANAGING,
                                      config.RABBIT_QUEUE_APPEAL,
                                      config.RABBIT_AMQP_ADDRESS)
 
-        bot = amqp_rabbit.Rabbit(config.RABBIT_EXCHANGE_SENDING,
+        bot = rabbit_amqp.Rabbit(config.RABBIT_EXCHANGE_SENDING,
                                  self.queue_from_bot,
                                  config.RABBIT_AMQP_ADDRESS)
 
