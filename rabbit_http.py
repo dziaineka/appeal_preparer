@@ -7,6 +7,8 @@ from exceptions import ErrorWhilePutInQueue
 
 logger = logging.getLogger(__name__)
 
+PERSISTENT = 2
+
 
 class Rabbit:
     async def _send(self, exchange_name, routing_key: str, body: dict) -> None:
@@ -14,8 +16,9 @@ class Rabbit:
             f'/api/exchanges/%2F/{exchange_name}/publish'
 
         data = {
-            'properties': {},
-            'persistent': True,
+            'properties': {
+                'delivery_mode': PERSISTENT,
+            },
             'routing_key': routing_key,
             'payload': json.dumps(body),
             'payload_encoding': 'string'
