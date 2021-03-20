@@ -9,12 +9,12 @@ from sender import start
 
 Path("./logs").mkdir(parents=True, exist_ok=True)
 
-file_handler_info = RotatingFileHandler("./logs/broadcaster_info.log",
+file_handler_info = RotatingFileHandler("./logs/sender_info.log",
                                         maxBytes=100000000,
                                         backupCount=5)
 file_handler_info.setLevel(logging.INFO)
 
-file_handler_error = RotatingFileHandler("./logs/broadcaster_error.log",
+file_handler_error = RotatingFileHandler("./logs/sender_error.log",
                                          maxBytes=10000000,
                                          backupCount=5)
 file_handler_error.setLevel(logging.ERROR)
