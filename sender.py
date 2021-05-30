@@ -2,12 +2,13 @@ import asyncio
 import json
 import logging
 from asyncio.events import AbstractEventLoop
+from pprint import pformat
 from typing import Any, Optional
 
 from imapclient.exceptions import LoginError as EmailLoginError
 
-import rabbit_amqp
 import config
+import rabbit_amqp
 from applicant import Applicant
 from captcha_solver import CaptchaSolver
 from exceptions import *
@@ -76,7 +77,7 @@ class Sender():
                 config.MINSK_DEPARTMENT_NAMES[department]
 
     async def async_process_new_appeal(self, appeal: dict) -> bool:
-        logger.info(f'Новое обращение: {appeal}')
+        logger.info(f'Новое обращение: {pformat(appeal)}')
         self.current_appeal = appeal
         email: str = self.get_value(appeal, 'sender_email', self.bot_email)
 
