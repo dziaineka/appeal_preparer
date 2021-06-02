@@ -17,5 +17,5 @@ pyzmail36==1.0.4
 requests==2.24.0
 selenium==3.141.0
 six==1.15.0
-urllib3==1.25.10
+urllib3==1.26.5
 yarl==1.5.1
