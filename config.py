@@ -1,9 +1,20 @@
+from os import getenv
+from os.path import join, dirname
+from dotenv import load_dotenv
+
+# Create .env file path.
+dotenv_path = join(dirname(__file__), ".env")
+
+# Load file from the path.
+load_dotenv(dotenv_path)
+
 # RabbitMQ
-RABBIT_HOST = 'localhost'
-RABBIT_AMQP_PORT = '5672'
-RABBIT_HTTP_PORT = '15672'
-RABBIT_LOGIN = 'appeal_sender'
-RABBIT_PASSWORD = 'appeal_sender'
+RABBIT_HOST = getenv("RABBIT_HOST", "localhost")
+RABBIT_AMQP_PORT = getenv("RABBIT_AMQP_PORT", "5672")
+RABBIT_HTTP_PORT = getenv("RABBIT_HTTP_PORT", "15672")
+RABBIT_LOGIN = getenv("RABBIT_LOGIN", "appeal_sender")
+RABBIT_PASSWORD = getenv("RABBIT_PASSWORD", "appeal_sender")
+
 RABBIT_ADDRESS = \
     f'http://{RABBIT_LOGIN}:{RABBIT_PASSWORD}@{RABBIT_HOST}:{RABBIT_HTTP_PORT}'
 
@@ -18,7 +29,7 @@ RABBIT_ROUTING_APPEAL = 'appeal_to_queue'
 RABBIT_QUEUE_APPEAL = 'appeal'
 
 # captcha solver
-CAPTCHA_SOLVER_HOST = 'http://localhost:5000'
+CAPTCHA_SOLVER_HOST = getenv("CAPTCHA_SOLVER_HOST", "http://localhost:5000")
 CAPTCHA_SOLVER_PATH = '/solve'
 
 # cancel timer
@@ -39,19 +50,19 @@ SENDING_CANCELLED = 'sending_cancelled'
 CANCEL = 'cancel'
 
 # appeals email
-EMAIL_PWD = "password"
+EMAIL_PWD = getenv("EMAIL_PWD", "password")
 
-EMAILS = [
-    'mail1@example.com',
-    'mail2@example.com',
-    'mail3@example.com',
-    'mail4@example.com',
-    'mail5@example.com',
-    'mail6@example.com',
-    'mail7@example.com',
-    'mail8@example.com',
-    'mail9@example.com',
-]
+default_emails = "mail1@example.com;;" + \
+    "mail2@example.com;;" + \
+    "mail3@example.com;;" + \
+    "mail4@example.com;;" + \
+    "mail5@example.com;;" + \
+    "mail6@example.com;;" + \
+    "mail7@example.com;;" + \
+    "mail8@example.com;;" + \
+    "mail9@example.com;;"
+
+EMAILS = getenv("EMAILS", default_emails).split(";;")
 
 IMAP_SERVER = "imap-mail.outlook.com"
 
@@ -96,9 +107,9 @@ MINSK_DEPARTMENT_NAMES = {
 }
 
 # sending protection
-ALLOW_SENDING = False
+ALLOW_SENDING = bool(getenv("ALLOW_SENDING", "False"))
 
 # browser options
-BROWSER_HOST = 'localhost'
-BROWSER_PORT = '4444'
+BROWSER_HOST = getenv("BROWSER_HOST", "localhost")
+BROWSER_PORT = getenv("BROWSER_PORT", "4444")
 BROWSER_URL = f'http://{BROWSER_HOST}:{BROWSER_PORT}/wd/hub'

@@ -8,4 +8,4 @@ RUN pip install --upgrade pip && \
 
 COPY . .
 
-CMD [ "./env_docker/entrypoint.sh" ]
+CMD [ "python", "./main.py" ]
