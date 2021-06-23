@@ -41,7 +41,7 @@ class Applicant:
 
         try:
             self.browser = webdriver.Remote(config.BROWSER_URL,
-                                            DesiredCapabilities.FIREFOX)
+                                            config.BROWSER_CAPABILITIES)
 
             # geckodriver_path = \
             #     r'/home/skaborik/Programs/geckodriver/geckodriver'

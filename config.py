@@ -1,12 +1,25 @@
 from os import getenv
 from os.path import join, dirname
 from dotenv import load_dotenv
+from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 
 # Create .env file path.
 dotenv_path = join(dirname(__file__), ".env")
 
 # Load file from the path.
 load_dotenv(dotenv_path)
+
+
+def get_browser_capabilities():
+    capabilities = getenv("BROWSER_CAPABILITIES", "firefox")
+
+    if capabilities == "firefox":
+        return DesiredCapabilities.FIREFOX
+    elif capabilities == "chrome":
+        return DesiredCapabilities.CHROME
+    else:
+        return None
+
 
 # RabbitMQ
 RABBIT_HOST = getenv("RABBIT_HOST", "localhost")
@@ -113,3 +126,4 @@ ALLOW_SENDING = bool(getenv("ALLOW_SENDING", "False"))
 BROWSER_HOST = getenv("BROWSER_HOST", "localhost")
 BROWSER_PORT = getenv("BROWSER_PORT", "4444")
 BROWSER_URL = f'http://{BROWSER_HOST}:{BROWSER_PORT}/wd/hub'
+BROWSER_CAPABILITIES = get_browser_capabilities()
