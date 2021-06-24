@@ -13,14 +13,11 @@ logger = logging.getLogger(__name__)
 
 def create_browser() -> webdriver.Remote:
     try:
-        # browser = webdriver.Remote(config.BROWSER_URL,
-        #                            config.BROWSER_CAPABILITIES)
+        browser = webdriver.Remote(config.BROWSER_URL,
+                                   config.BROWSER_CAPABILITIES)
 
-        geckodriver_path = \
-            r'/usr/local/bin/geckodriver'
-
-        browser = webdriver.Firefox(
-            executable_path=geckodriver_path)
+        # geckodriver_path = r'/usr/local/bin/geckodriver'
+        # browser = webdriver.Firefox(executable_path=geckodriver_path)
 
         browser.implicitly_wait(20)  # seconds
 
