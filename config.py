@@ -120,7 +120,7 @@ MINSK_DEPARTMENT_NAMES = {
 }
 
 # sending protection
-ALLOW_SENDING = bool(getenv("ALLOW_SENDING", "False"))
+ALLOW_SENDING = bool(int(getenv("ALLOW_SENDING", "0")))
 
 # browser options
 BROWSER_HOST = getenv("BROWSER_HOST", "localhost")
