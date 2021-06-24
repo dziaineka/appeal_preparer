@@ -51,6 +51,7 @@ class Emailer:
             raw_message = client.fetch(unseen_messages, ['BODY[]', 'FLAGS'])
 
             if unseen_messages:
+                logger.info("Нашли письмо со ссылкой на форму обращения")
                 msg_num = unseen_messages[-1]
                 return msg_num, raw_message
 
@@ -62,6 +63,8 @@ class Emailer:
             return self._search_mail_item(client, email)
 
     def get_appeal_url(self, email: str, password: str) -> str:
+        logger.info("Достаем ссылку на форму обращения из ящика")
+
         try:
             msg_num, raw_message = wait(IndexError,
                                         self._get_messages,
