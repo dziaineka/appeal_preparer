@@ -67,6 +67,7 @@ class Emailer:
                                         self._get_messages,
                                         2,
                                         None,
+                                        20,
                                         email,
                                         password)
         except IndexError as exc:

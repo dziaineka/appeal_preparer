@@ -5,17 +5,18 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def wait(exception,
+def wait(exception_to_handle,
          function: Callable,
-         pause=0,
-         exception_to_raise=None,
+         pause: float,
+         exception_to_raise,
+         attempts: int,
          *args) -> Any:
-    current_exception = exception
+    current_exception = exception_to_handle
 
-    for attempt in range(10):
+    for _ in range(attempts):
         try:
             return function(*args)
-        except exception as exc:
+        except exception_to_handle as exc:
             current_exception = exc
             logger.info(f'ОЙ wait - {str(exc)}')
             time.sleep(pause)
@@ -27,10 +28,18 @@ def wait(exception,
         raise current_exception
 
 
-def wait_decorator(exception, pause=0, exception_to_raise=None) -> Callable:
+def wait_decorator(exception_to_handle,
+                   pause: float = 0,
+                   exception_to_raise=None,
+                   attempts: int = 20) -> Callable:
     def decorator(function: Callable) -> Callable:
         def wrapper(*args) -> Any:
-            return wait(exception, function, pause, exception_to_raise, *args)
+            return wait(exception_to_handle,
+                        function,
+                        pause,
+                        exception_to_raise,
+                        attempts,
+                        *args)
 
         return wrapper
 
