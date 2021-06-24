@@ -6,7 +6,9 @@ from pprint import pformat
 from typing import Any, Optional
 
 from imapclient.exceptions import LoginError as EmailLoginError
+from selenium import webdriver
 
+import browser as brwsr
 import config
 import rabbit_amqp
 from applicant import Applicant
@@ -38,7 +40,7 @@ class Sender():
 
     async def process_new_appeal(self,
                                  channel,
-                                 body,
+                                 body: str,
                                  envelope,
                                  properties) -> None:
         success = True
@@ -55,7 +57,6 @@ class Sender():
             self.current_appeal = None
             self.failed_email_user_id = 0
             await channel.basic_client_ack(delivery_tag=envelope.delivery_tag)
-            self.applicant.quit_browser()
 
             logger.info(f'Обращение обработано ' +
                         f'user_id: {appeal["user_id"]} ' +
@@ -76,9 +77,8 @@ class Sender():
             appeal['police_subdepartment'] = \
                 config.MINSK_DEPARTMENT_NAMES[department]
 
-    async def async_process_new_appeal(self, appeal: dict) -> bool:
-        logger.info(f'Новое обращение: {pformat(appeal)}')
-        self.current_appeal = appeal
+    async def solve_captcha(self, browser: webdriver.Remote) -> bool:
+        appeal: dict = self.current_appeal or dict()
         email: str = self.get_value(appeal, 'sender_email', self.bot_email)
 
         if self.failed_email_user_id == appeal['user_id']:
@@ -89,7 +89,8 @@ class Sender():
         logger.info(f"Достали имейл: {email}")
 
         proceed, success, captcha_text = await self.get_captcha_text(appeal,
-                                                                     email)
+                                                                     email,
+                                                                     browser)
 
         if not proceed:
             return success
@@ -97,28 +98,39 @@ class Sender():
         proceed = await self.process_captcha(captcha_text,
                                              appeal['user_id'],
                                              appeal['appeal_id'],
+                                             browser,
                                              silent=True)
-        if not proceed:
-            return False
+        return proceed
 
-        proceed, url = await self.get_appeal_url()
+    async def async_process_new_appeal(self, appeal: dict) -> bool:
+        logger.info(f'Новое обращение: {pformat(appeal)}')
+        self.current_appeal = appeal
 
-        if not proceed:
-            return False
+        with brwsr.get_browser() as browser:
+            if not await self.solve_captcha(browser):
+                return False
 
-        return await self.send_appeal(url)
+            proceed, url = await self.get_appeal_url()
 
-    async def get_captcha_text(self,
-                               appeal: dict,
-                               email: str) -> Tuple[bool, bool, str]:
+            if not proceed:
+                return False
+
+            return await self.send_appeal(url, browser)
+
+    async def get_captcha_text(
+            self,
+            appeal: dict,
+            email: str,
+            browser: webdriver.Remote) -> Tuple[bool, bool, str]:
         try:
-            captcha_solution = await self.solve_captcha(email)
+            captcha_solution = await self.recognize_captcha(email, browser)
 
             if captcha_solution is None:
                 logger.info("Капча не распозналась =(")
                 await self.send_captcha(appeal['appeal_id'],
                                         appeal['user_id'],
-                                        email)
+                                        email,
+                                        browser)
 
                 cancel, captcha_solution = \
                     await self.wait_for_input_or_cancel()
@@ -151,8 +163,10 @@ class Sender():
     async def send_captcha(self,
                            appeal_id: int,
                            user_id: int,
-                           email: str) -> None:
-        captcha = self.applicant.get_png_captcha(email)
+                           email: str,
+                           browser: webdriver.Remote) -> None:
+        captcha = self.applicant.get_png_captcha(email, browser)
+
         self.stop_timer.cock_it(config.CANCEL_TIMEOUT)
 
         try:
@@ -165,8 +179,10 @@ class Sender():
             if exc.data:
                 await self.send_to_bot().do_request(exc.data[0], exc.data[1])
 
-    async def solve_captcha(self, email: str) -> Optional[str]:
-        svg_captcha = self.applicant.get_svg_captcha(email)
+    async def recognize_captcha(self,
+                                email: str,
+                                browser: webdriver.Remote) -> Optional[str]:
+        svg_captcha = self.applicant.get_svg_captcha(email, browser)
         return await self.captcha_solver.solve(svg_captcha)
 
     async def process_bot_message(self,
@@ -202,8 +218,10 @@ class Sender():
                               captcha_text: str,
                               user_id: int,
                               appeal_id: int,
+                              browser: webdriver.Remote,
                               silent=False) -> bool:
-        if self.applicant.enter_captcha_and_submit(captcha_text) != config.OK:
+        if self.applicant.enter_captcha_and_submit(
+                captcha_text, browser) != config.OK:
             logger.info("Капча не подошла")
             return False
 
@@ -215,10 +233,10 @@ class Sender():
                                                  self.current_appeal['appeal'])
         return True
 
-    async def send_appeal(self, url) -> bool:
+    async def send_appeal(self, url: str, browser: webdriver.Remote) -> bool:
         try:
             status_code, message = self.applicant.send_appeal(
-                self.current_appeal['appeal'], url)
+                self.current_appeal['appeal'], url, browser)
 
             if status_code != config.OK:
                 logger.info(f"Ошибка при отправке - {message}")
@@ -237,7 +255,7 @@ class Sender():
             if not proceed:
                 return False
 
-            return await self.send_appeal(url)
+            return await self.send_appeal(url, browser)
         except Exception:
             logger.exception('ОЙ send_appeal')
             return False
@@ -341,10 +359,9 @@ class Sender():
 
     def stop(self):
         logger.info('Суецыд')
-        self.applicant.quit_browser()
 
 
-def run_consuming(sender):
+def run_consuming(sender: Sender):
     try:
         sender.start()
     except Exception:

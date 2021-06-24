@@ -1,18 +1,17 @@
-from selenium import webdriver
-from selenium.common.exceptions import \
-    ElementClickInterceptedException, \
-    WebDriverException, \
-    TimeoutException
-from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
-import emailer
-from waiter import wait_decorator
-import logging
-import requests
-import config
-from exceptions import BrowserError, RancidAppeal
-from typing import Callable, Tuple
-import time
 import json
+import logging
+import time
+from typing import Callable, Tuple
+
+import requests
+from selenium import webdriver
+from selenium.common.exceptions import ElementClickInterceptedException
+
+import config
+import emailer
+from browser import create_window
+from exceptions import BrowserError, RancidAppeal
+from waiter import wait_decorator
 
 logger = logging.getLogger(__name__)
 
@@ -22,44 +21,11 @@ class Applicant:
         self.mailbox = emailer.Emailer()
         self.browser = None
 
-    def quit_browser(self):
-        logger.info("Убиваем браузер")
-
-        try:
-            if self.browser:
-                self.browser.quit()
-        except WebDriverException as exc:
-            logger.info(f'ОЙ quit_browser - {str(exc).strip()}')
-        except Exception as exc:
-            logger.info(f'ОЙ quit_browser - {str(exc).strip()}')
-            logger.exception(exc)
-            pass
-
-    def get_browser(self):
-        if self.browser:
-            self.quit_browser()
-
-        try:
-            self.browser = webdriver.Remote(config.BROWSER_URL,
-                                            config.BROWSER_CAPABILITIES)
-
-            # geckodriver_path = \
-            #     r'/home/skaborik/Programs/geckodriver/geckodriver'
-
-            # self.browser = webdriver.Firefox(
-            #     executable_path=)
-        except TimeoutException:
-            logger.info("Не загрузили браузер")
-            raise BrowserError
-
-        self.browser.implicitly_wait(10)  # seconds
-        logger.info("Загрузили браузер")
-
-    def make_visible(self, element) -> None:
+    def make_visible(self, element, browser: webdriver.Remote) -> None:
         # returns dict of X, Y coordinates
         coordinates = element.location_once_scrolled_into_view
 
-        self.browser.execute_script(
+        browser.execute_script(
             f'window.scrollTo({coordinates["x"]}, {coordinates["y"]});')
 
     def _extract_status_captcha(self, element) -> Tuple[str, str]:
@@ -90,9 +56,9 @@ class Applicant:
         logger.info(f'_extract_status_appeal - {text}')
         return config.OK, text
 
-    def _upload_captcha(self) -> str:
+    def _upload_captcha(self, browser: webdriver.Remote) -> str:
         captcha = self._get_element_by_xpath(
-            '//div[@class="col-sm-6"]/div[2]/*[name()="svg"]')
+            '//div[@class="col-sm-6"]/div[2]/*[name()="svg"]', browser)
 
         upload_url = 'https://telegra.ph/upload'
         files = {'file': ('file', captcha.screenshot_as_png, 'image/png')}
@@ -100,24 +66,24 @@ class Applicant:
         logger.info("Нашли урл капчи")
         return f'https://telegra.ph{result[0]["src"]}'
 
-    def enter_captcha_and_submit(self, captcha_text: str) -> str:
-        if not self.browser:
-            return config.FAIL
-
-        captcha_field = self._get_element_by_id("captcha")
-        self.make_visible(captcha_field)
+    def enter_captcha_and_submit(self,
+                                 captcha_text: str,
+                                 browser: webdriver.Remote) -> str:
+        captcha_field = self._get_element_by_id("captcha", browser)
+        self.make_visible(captcha_field, browser)
         self._fill_field(captcha_field, captcha_text)
 
         submit_button_xpath = \
             '//div[@class="col-sm-6"]/button[contains(@class, "md-primary")]'
 
         self.click_button(submit_button_xpath,
-                          '//div[@id="info-message"]/p')
+                          '//div[@id="info-message"]/p',
+                          browser)
 
         logger.info("Нажали сабмит капчи")
 
         submit_status, status_text = self.get_popup_info(
-            self._extract_status_captcha)
+            self._extract_status_captcha, browser)
 
         logger.info(f'Достали статус {status_text}')
 
@@ -130,19 +96,18 @@ class Applicant:
         else:
             status = config.OK
 
-        self.browser.quit()
         return status
 
-    def _get_captcha_site(self, email: str) -> None:
-        self.browser.get('https://minsk.mvd.gov.by/ru/electronicAppealLogin')
+    def _get_captcha_site(self, email: str, browser: webdriver.Remote) -> None:
+        browser.get('https://minsk.mvd.gov.by/ru/electronicAppealLogin')
 
-        email_field = self._get_element_by_id("email")
-        self.make_visible(email_field)
+        email_field = self._get_element_by_id("email", browser)
+        self.make_visible(email_field, browser)
         self._fill_field(email_field, email)
         logger.info("Заполнили емаил")
 
-        rules_acception = self._get_element_by_class("md-container")
-        self.make_visible(rules_acception)
+        rules_acception = self._get_element_by_class("md-container", browser)
+        self.make_visible(rules_acception, browser)
         rules_acception.click()
         logger.info("Кликнули на галку")
 
@@ -159,33 +124,35 @@ class Applicant:
             field.send_keys(text)
 
     @wait_decorator(Exception, pause=0.5, exception_to_raise=BrowserError)
-    def _get_element_by_class(self, element_class: str):
-        return self.browser.find_element_by_class_name(element_class)
+    def _get_element_by_class(self,
+                              element_class: str,
+                              browser: webdriver.Remote):
+        return browser.find_element_by_class_name(element_class)
 
     @wait_decorator(Exception, pause=0.5, exception_to_raise=BrowserError)
-    def _get_element_by_id(self, element_id: str):
-        return self.browser.find_element_by_id(element_id)
+    def _get_element_by_id(self, element_id: str, browser: webdriver.Remote):
+        return browser.find_element_by_id(element_id)
 
     @wait_decorator(Exception, pause=0.5, exception_to_raise=BrowserError)
-    def _get_element_by_xpath(self, xpath: str):
-        return self.browser.find_element_by_xpath(xpath)
+    def _get_element_by_xpath(self, xpath: str, browser: webdriver.Remote):
+        return browser.find_element_by_xpath(xpath)
 
     @wait_decorator(ElementClickInterceptedException)
-    def get_png_captcha(self, email: str) -> str:
-        self.get_browser()
-        self._get_captcha_site(email)
+    def get_png_captcha(self, email: str, browser: webdriver.Remote) -> str:
+        create_window(browser)
+        self._get_captcha_site(email, browser)
         logger.info("Загрузили сайт с капчей")
-        return self._upload_captcha()
+        return self._upload_captcha(browser)
 
     @wait_decorator(ElementClickInterceptedException)
-    def get_svg_captcha(self, email: str) -> str:
-        self.get_browser()
-        self._get_captcha_site(email)
+    def get_svg_captcha(self, email: str, browser: webdriver.Remote) -> str:
+        create_window(browser)
+        self._get_captcha_site(email, browser)
         logger.info("Загрузили сайт с капчей")
-        return self._get_captcha_svg()
+        return self._get_captcha_svg(browser)
 
-    def _get_captcha_svg(self) -> str:
-        web_elements = self.browser.find_elements_by_xpath(
+    def _get_captcha_svg(self, browser: webdriver.Remote) -> str:
+        web_elements = browser.find_elements_by_xpath(
             '//div[@class="col-sm-6"]/div[2]/*[name()="svg"]/*[name()="path"]')
 
         html_elements = map(lambda element: element.get_attribute('outerHTML'),
@@ -205,41 +172,38 @@ class Applicant:
         return svg_image
 
     @wait_decorator(ElementClickInterceptedException)
-    def request_appeal_url(self, email: str, password: str) -> str:
-        self._get_captcha_site(email)
-
-        captcha = input("Captcha: ")
-
-        if self.enter_captcha_and_submit(captcha) != config.OK:
-            self.request_appeal_url(email, password)
-
-        return self.mailbox.get_appeal_url(email, password)
-
-    @wait_decorator(ElementClickInterceptedException)
-    def send_appeal(self, data: dict, url: str) -> tuple:
+    def send_appeal(self,
+                    data: dict,
+                    url: str,
+                    browser: webdriver.Remote) -> tuple:
         try:
-            self.get_browser()
-            self.browser.get(url)
+            create_window(browser)
+            browser.get(url)
             logger.info("Загрузили сайт с формой обращения")
 
             last_name_field = self._get_element_by_xpath(
-                '//input[@data-ng-model="appeal.last_name"]')
+                '//input[@data-ng-model="appeal.last_name"]',
+                browser)
 
-            self.make_visible(last_name_field)
+            self.make_visible(last_name_field, browser)
             self._fill_field(last_name_field, data['sender_last_name'])
 
             logger.info("Ввели фамилию")
 
             first_name_field = self._get_element_by_xpath(
-                '//input[@data-ng-model="appeal.first_name"]')
-            self.make_visible(first_name_field)
+                '//input[@data-ng-model="appeal.first_name"]',
+                browser)
+
+            self.make_visible(first_name_field, browser)
             self._fill_field(first_name_field, data['sender_first_name'])
 
             logger.info("Ввели имя")
 
             patronymic_name_field = self._get_element_by_xpath(
-                '//input[@ng-model="appeal.middle_name"]')
-            self.make_visible(patronymic_name_field)
+                '//input[@ng-model="appeal.middle_name"]',
+                browser)
+
+            self.make_visible(patronymic_name_field, browser)
             self._fill_field(patronymic_name_field, data['sender_patronymic'])
 
             logger.info("Ввели отчество")
@@ -254,12 +218,16 @@ class Applicant:
 
             self.click_button(division_select_field_xpath,
                               division_xpath,
+                              browser,
                               ElementClickInterceptedException)
 
             subdivision_select_field_xpath = \
                 '//md-select[@ng-model="appeal.subdivision"]'
 
-            self.click_button(division_xpath, subdivision_select_field_xpath)
+            self.click_button(division_xpath,
+                              subdivision_select_field_xpath,
+                              browser)
+
             zipcode_xpath = '//input[@ng-model="appeal.postal_code"]'
 
             if data['police_subdepartment']:
@@ -271,75 +239,86 @@ class Applicant:
 
                 self.click_button(subdivision_select_field_xpath,
                                   subdivision_xpath,
+                                  browser,
                                   ElementClickInterceptedException)
 
-                self.click_button(subdivision_xpath, zipcode_xpath)
+                self.click_button(subdivision_xpath, zipcode_xpath, browser)
 
             logger.info("Выбрали отдел ГУВД")
 
-            zipcode = self._get_element_by_xpath(zipcode_xpath)
-            self.make_visible(zipcode)
+            zipcode = self._get_element_by_xpath(zipcode_xpath, browser)
+            self.make_visible(zipcode, browser)
             self._fill_field(zipcode, data['sender_zipcode'])
 
             logger.info("Ввели индекс")
 
             city = self._get_element_by_xpath(
-                '//input[@ng-model="appeal.city"]')
-            self.make_visible(city)
+                '//input[@ng-model="appeal.city"]', browser)
+
+            self.make_visible(city, browser)
             self._fill_field(city, data['sender_city'])
 
             logger.info("Ввели город")
 
             street = self._get_element_by_xpath(
-                '//input[@ng-model="appeal.street"]')
-            self.make_visible(street)
+                '//input[@ng-model="appeal.street"]', browser)
+
+            self.make_visible(street, browser)
             self._fill_field(street, data['sender_street'])
 
             logger.info("Ввели улицу")
 
             building = self._get_element_by_xpath(
-                '//input[@ng-model="appeal.house"]')
-            self.make_visible(building)
+                '//input[@ng-model="appeal.house"]', browser)
+
+            self.make_visible(building, browser)
             self._fill_field(building, data['sender_house'])
 
             logger.info("Ввели дом")
 
             block = self._get_element_by_xpath(
-                '//input[@ng-model="appeal.korpus"]')
-            self.make_visible(block)
+                '//input[@ng-model="appeal.korpus"]', browser)
+
+            self.make_visible(block, browser)
             self._fill_field(block, data['sender_block'])
 
             logger.info("Ввели корпус")
 
             flat = self._get_element_by_xpath(
-                '//input[@ng-model="appeal.flat"]')
-            self.make_visible(flat)
+                '//input[@ng-model="appeal.flat"]', browser)
+
+            self.make_visible(flat, browser)
             self._fill_field(flat, data['sender_flat'])
 
             logger.info("Ввели квартиру")
 
             text = self._get_element_by_xpath(
-                '//textarea[@ng-model="appeal.text"]')
-            self.make_visible(text)
+                '//textarea[@ng-model="appeal.text"]', browser)
+
+            self.make_visible(text, browser)
+
             self.enter_appeal('//textarea[@ng-model="appeal.text"]',
-                              data['text'])
+                              data['text'],
+                              browser)
+
             self._fill_field(text, " ")
 
             logger.info("Ввели текст")
 
-            self.attach_photos(data['violation_photo_files_paths'])
+            self.attach_photos(data['violation_photo_files_paths'], browser)
 
             submit_button_xpath = '//div[@class="col-sm-6 text-center"]/' + \
                                   'button[contains(@class, "md-primary")]'
 
             if config.ALLOW_SENDING:
                 self.click_button(submit_button_xpath,
-                                  '//div[@id="info-message"]/p')
+                                  '//div[@id="info-message"]/p',
+                                  browser)
 
                 logger.info("Отправили")
 
                 submit_status, status_text = self.get_popup_info(
-                    self._extract_status_sending)
+                    self._extract_status_sending, browser)
 
                 if submit_status != config.OK:
                     return config.FAIL, status_text
@@ -347,6 +326,7 @@ class Applicant:
             # let's try to get error message
             status, status_text = self.get_popup_info(
                 self._extract_status_appeal,
+                browser,
                 max_attempts=6)
 
             if status == config.OK:
@@ -364,16 +344,17 @@ class Applicant:
 
     def click_button(self, button_xpath: str,
                      next_elem_xpath: str,
+                     browser: webdriver.Remote,
                      exc=None):
         sended = False
         tries = 5
 
         while not sended:
             try:
-                button = self._get_element_by_xpath(button_xpath)
-                self.make_visible(button)
+                button = self._get_element_by_xpath(button_xpath, browser)
+                self.make_visible(button, browser)
                 button.click()
-                self.browser.find_element_by_xpath(next_elem_xpath)
+                browser.find_element_by_xpath(next_elem_xpath)
                 sended = True
             except Exception:
                 logger.exception("click_button")
@@ -388,14 +369,18 @@ class Applicant:
                         sended = True
 
     @wait_decorator(Exception, pause=0.5, exception_to_raise=BrowserError)
-    def enter_appeal(self, xpath: str, appeal_text: str):
+    def enter_appeal(self,
+                     xpath: str,
+                     appeal_text: str,
+                     browser: webdriver.Remote):
         text_for_js = json.dumps(appeal_text, ensure_ascii=False)
 
-        self.browser.execute_script(
+        browser.execute_script(
             f'document.getElementById("input_20").value={text_for_js};')
 
     def get_popup_info(self,
                        extractor: Callable,
+                       browser: webdriver.Remote,
                        max_attempts: int = 15) -> Tuple[str, str]:
         text = ''
         counter = 0
@@ -406,15 +391,15 @@ class Applicant:
 
             if counter > max_attempts:
                 logger.error('Нет попапа')
-                self.browser.save_screenshot(
+                browser.save_screenshot(
                     '/tmp/temp_files_parkun/get_popup_info_error.png')
                 raise BrowserError
 
             try:
                 infobox = self._get_element_by_xpath(
-                    '//div[@id="info-message"]/p')
+                    '//div[@id="info-message"]/p', browser)
             except Exception:
-                self.browser.save_screenshot(
+                browser.save_screenshot(
                     '/tmp/temp_files_parkun/get_popup_info_error1.png')
                 logger.exception("get_popup_info exc")
 
@@ -424,8 +409,11 @@ class Applicant:
 
         return extractor(infobox)
 
-    def attach_photos(self, photo_paths: list) -> None:
-        attach_field = self._get_element_by_xpath("//input[@type=\"file\"]")
+    def attach_photos(self, photo_paths: list,
+                      browser: webdriver.Remote) -> None:
+        attach_field = self._get_element_by_xpath("//input[@type=\"file\"]",
+                                                  browser)
+
         label = attach_field.find_element_by_xpath("./..")
 
         js = "arguments[0].style.height='100px'; \
@@ -434,7 +422,7 @@ class Applicant:
             arguments[0].style.visibility='visible'; \
             arguments[0].style.opacity = 1"
 
-        self.browser.execute_script(js, label)
+        browser.execute_script(js, label)
 
         for path in photo_paths:
             try:

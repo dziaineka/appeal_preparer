@@ -1,5 +1,6 @@
 from os import getenv
-from os.path import join, dirname
+from os.path import dirname, join
+
 from dotenv import load_dotenv
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 
@@ -127,3 +128,4 @@ BROWSER_HOST = getenv("BROWSER_HOST", "localhost")
 BROWSER_PORT = getenv("BROWSER_PORT", "4444")
 BROWSER_URL = f'http://{BROWSER_HOST}:{BROWSER_PORT}/wd/hub'
 BROWSER_CAPABILITIES = get_browser_capabilities()
+BROWSER_MAX_WINDOWS = int(getenv("BROWSER_MAX_WINDOWS", "5"))
