@@ -354,7 +354,7 @@ class Applicant:
                 button = self._get_element_by_xpath(button_xpath, browser)
                 self.make_visible(button, browser)
                 button.click()
-                browser.find_element_by_xpath(next_elem_xpath)
+                self._get_element_by_xpath(next_elem_xpath, browser)
                 sended = True
             except Exception:
                 logger.exception("click_button")
