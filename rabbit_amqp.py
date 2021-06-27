@@ -34,13 +34,13 @@ class Rabbit:
                     pause *= 2
 
     async def connect(self, callback, passive=False) -> None:
-        transport, protocol = await aioamqp.connect(
+        _, protocol = await aioamqp.connect(
             host=config.RABBIT_HOST,
             port=config.RABBIT_AMQP_PORT,
             login=config.RABBIT_LOGIN,
             password=config.RABBIT_PASSWORD,
             login_method='AMQPLAIN',
-            heartbeat=65535
+            heartbeat=0
         )
 
         channel = await protocol.channel()
