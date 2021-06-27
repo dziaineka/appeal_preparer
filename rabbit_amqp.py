@@ -1,7 +1,9 @@
-import aioamqp
 import asyncio
-import config
 import logging
+from asyncio import AbstractEventLoop
+from typing import Callable
+
+import aio_pika
 
 logger = logging.getLogger(__name__)
 
@@ -10,51 +12,54 @@ class Rabbit:
     def __init__(self,
                  exhange_name: str,
                  queue_name: str,
-                 amqp_address: str):
+                 amqp_address: str,
+                 loop: AbstractEventLoop,
+                 name: str):
         self.queue_name = queue_name
         self.exhange_name = exhange_name
         self.amqp_address = amqp_address
+        self.loop = loop
+        self.callback: Callable
+        self.name = name
 
-    async def start(self, callback, passive=False) -> None:
+    async def start(self, callback: Callable) -> None:
+        self.callback = callback
         connected = False
         pause = 1
 
         while not connected:
             try:
-                await self.connect(callback, passive)
+                await self.connect(callback)
                 connected = True
                 pause = 1
-                logger.info("Подключились к раббиту")
+                logger.info(f"[{self.name}] Подключились к раббиту")
             except Exception:
                 connected = False
-                logger.info('Fail. Trying reconnect Rabbit.')
+                logger.info(f'[{self.name}] Fail. Trying reconnect Rabbit.')
                 await asyncio.sleep(pause)
 
                 if pause < 30:
                     pause *= 2
 
-    async def connect(self, callback, passive=False) -> None:
-        _, protocol = await aioamqp.connect(
-            host=config.RABBIT_HOST,
-            port=config.RABBIT_AMQP_PORT,
-            login=config.RABBIT_LOGIN,
-            password=config.RABBIT_PASSWORD,
-            login_method='AMQPLAIN',
+    async def connect(self, callback: Callable) -> None:
+        connection = await aio_pika.connect_robust(
+            self.amqp_address,
+            loop=self.loop,
             heartbeat=0
         )
 
-        channel = await protocol.channel()
+        # Creating channel
+        channel = await connection.channel()
 
-        await channel.basic_qos(prefetch_count=1)
+        # Maximum message count which will be
+        # processing at the same time.
+        await channel.set_qos(prefetch_count=1)
 
-        await channel.queue_declare(queue_name=self.queue_name,
-                                    durable=True,
-                                    passive=passive)
+        # Declaring queue
+        queue = await channel.declare_queue(self.queue_name, passive=True)
 
-        await channel.queue_bind(self.queue_name,
-                                 self.exhange_name,
-                                 routing_key=self.queue_name)
+        await queue.consume(self.process_message)
 
-        await channel.basic_consume(callback,
-                                    queue_name=self.queue_name,
-                                    no_ack=False)
+    async def process_message(self, message: aio_pika.IncomingMessage):
+        async with message.process(requeue=True, ignore_processed=True):
+            await self.callback(message)

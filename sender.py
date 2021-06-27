@@ -5,6 +5,7 @@ from asyncio.events import AbstractEventLoop
 from pprint import pformat
 from typing import Any, Optional
 
+import aio_pika
 from imapclient.exceptions import LoginError as EmailLoginError
 from selenium import webdriver
 
@@ -39,12 +40,9 @@ class Sender():
         return HttpRabbit()
 
     async def process_new_appeal(self,
-                                 channel,
-                                 body: str,
-                                 envelope,
-                                 properties) -> None:
+                                 message: aio_pika.IncomingMessage) -> None:
         success = True
-        appeal = json.loads(body)
+        appeal = json.loads(message.body.decode("utf-8"))
         self.convert_recipient(appeal['appeal'])
 
         try:
@@ -56,14 +54,14 @@ class Sender():
         if success:
             self.current_appeal = None
             self.failed_email_user_id = 0
-            await channel.basic_client_ack(delivery_tag=envelope.delivery_tag)
+            await message.ack()
 
             logger.info(f'Обращение обработано ' +
                         f'user_id: {appeal["user_id"]} ' +
                         f'appeal_id: {appeal["appeal_id"]}')
         else:
             logger.info('Попробуем отправить еще раз')
-            await self.process_new_appeal(channel, body, envelope, properties)
+            await self.process_new_appeal(message)
 
     def convert_recipient(self, appeal: dict) -> None:
         department = appeal['police_department']
@@ -186,11 +184,8 @@ class Sender():
         return await self.captcha_solver.solve(svg_captcha)
 
     async def process_bot_message(self,
-                                  channel,
-                                  body,
-                                  envelope,
-                                  properties) -> None:
-        data = json.loads(body)
+                                  message: aio_pika.IncomingMessage) -> None:
+        data = json.loads(message.body)
         logger.info(f'Сообщение от бота: {data}')
         email = self.get_value(data, 'sender_email', self.bot_email)
         logger.info(f"Достали имейл: {email}")
@@ -202,7 +197,6 @@ class Sender():
         if not self.current_appeal \
                 or self.current_appeal['user_id'] != user_id \
                 or self.current_appeal['appeal_id'] != appeal_id:
-            await channel.basic_client_ack(delivery_tag=envelope.delivery_tag)
             return
 
         if data['type'] == config.CAPTCHA_TEXT:
@@ -211,8 +205,6 @@ class Sender():
 
         elif data['type'] == config.CANCEL:
             await self.stop_appeal_sending(local=True)
-
-        await channel.basic_client_ack(delivery_tag=envelope.delivery_tag)
 
     async def process_captcha(self,
                               captcha_text: str,
@@ -307,14 +299,19 @@ class Sender():
     async def start_sender(self, loop: AbstractEventLoop) -> None:
         appeals = rabbit_amqp.Rabbit(config.RABBIT_EXCHANGE_MANAGING,
                                      config.RABBIT_QUEUE_APPEAL,
-                                     config.RABBIT_AMQP_ADDRESS)
+                                     config.RABBIT_AMQP_ADDRESS,
+                                     loop,
+                                     "appeals")
 
         bot = rabbit_amqp.Rabbit(config.RABBIT_EXCHANGE_SENDING,
                                  self.queue_from_bot,
-                                 config.RABBIT_AMQP_ADDRESS)
+                                 config.RABBIT_AMQP_ADDRESS,
+                                 loop,
+                                 "bot_messages")
 
         asyncio.ensure_future(bot.start(self.process_bot_message))
-        asyncio.ensure_future(appeals.start(self.process_new_appeal, True))
+        await asyncio.sleep(5)
+        asyncio.ensure_future(appeals.start(self.process_new_appeal))
         asyncio.ensure_future(self.stop_timer.start())
 
         logger.info(f"Воркер стартует.")
