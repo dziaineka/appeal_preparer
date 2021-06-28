@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from asyncio import AbstractEventLoop
-from typing import Callable
+from typing import Callable, Optional
 
 import aio_pika
 
@@ -21,6 +21,7 @@ class Rabbit:
         self.loop = loop
         self.callback: Callable
         self.name = name
+        self.connection: Optional[aio_pika.connection.Connection] = None
 
     async def start(self, callback: Callable) -> None:
         self.callback = callback
@@ -35,6 +36,10 @@ class Rabbit:
                 logger.info(f"[{self.name}] Подключились к раббиту")
             except Exception:
                 connected = False
+
+                if self.connection:
+                    await self.connection.close()
+
                 logger.info(f'[{self.name}] Fail. Trying reconnect Rabbit.')
                 await asyncio.sleep(pause)
 
@@ -42,14 +47,14 @@ class Rabbit:
                     pause *= 2
 
     async def connect(self, callback: Callable) -> None:
-        connection = await aio_pika.connect_robust(
+        self.connection = await aio_pika.connect_robust(
             self.amqp_address,
             loop=self.loop,
             heartbeat=0
         )
 
         # Creating channel
-        channel = await connection.channel()
+        channel = await self.connection.channel()
 
         # Maximum message count which will be
         # processing at the same time.
