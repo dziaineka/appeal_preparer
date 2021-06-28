@@ -309,10 +309,9 @@ class Sender():
                                  loop,
                                  "bot_messages")
 
-        asyncio.ensure_future(bot.start(self.process_bot_message))
-        await asyncio.sleep(5)
-        asyncio.ensure_future(appeals.start(self.process_new_appeal))
-        asyncio.ensure_future(self.stop_timer.start())
+        asyncio.gather(bot.start(self.process_bot_message),
+                       appeals.start(self.process_new_appeal),
+                       self.stop_timer.start())
 
         logger.info(f"Воркер стартует.")
 
