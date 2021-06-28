@@ -40,7 +40,9 @@ class Rabbit:
                 if self.connection:
                     await self.connection.close()
 
-                logger.info(f'[{self.name}] Fail. Trying reconnect Rabbit.')
+                logger.exception(
+                    f'[{self.name}] Fail. Trying reconnect Rabbit.')
+
                 await asyncio.sleep(pause)
 
                 if pause < 30:
