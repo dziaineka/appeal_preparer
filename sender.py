@@ -309,8 +309,8 @@ class Sender():
                                  loop,
                                  "bot_messages")
 
-        asyncio.gather(bot.start(self.process_bot_message),
-                       appeals.start(self.process_new_appeal),
+        asyncio.gather(bot.start(self.process_bot_message, passive=False),
+                       appeals.start(self.process_new_appeal, passive=True),
                        self.stop_timer.start())
 
         logger.info(f"Воркер стартует.")

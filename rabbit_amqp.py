@@ -23,14 +23,14 @@ class Rabbit:
         self.name = name
         self.connection: Optional[aio_pika.connection.Connection] = None
 
-    async def start(self, callback: Callable) -> None:
+    async def start(self, callback: Callable, passive: bool = True) -> None:
         self.callback = callback
         connected = False
         pause = 1
 
         while not connected:
             try:
-                await self.connect(callback)
+                await self.connect(passive)
                 connected = True
                 pause = 1
                 logger.info(f"[{self.name}] Подключились к раббиту")
@@ -48,7 +48,7 @@ class Rabbit:
                 if pause < 30:
                     pause *= 2
 
-    async def connect(self, callback: Callable) -> None:
+    async def connect(self, passive: bool = True) -> None:
         self.connection = await aio_pika.connect_robust(
             self.amqp_address,
             loop=self.loop,
@@ -63,7 +63,9 @@ class Rabbit:
         await channel.set_qos(prefetch_count=1)
 
         # Declaring queue
-        queue = await channel.declare_queue(self.queue_name, passive=True)
+        queue = await channel.declare_queue(self.queue_name,
+                                            passive=passive,
+                                            durable=True)
 
         await queue.consume(self.process_message)
 
