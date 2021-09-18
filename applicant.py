@@ -99,7 +99,7 @@ class Applicant:
         return status
 
     def _get_captcha_site(self, email: str, browser: webdriver.Remote) -> None:
-        browser.get('https://minsk.mvd.gov.by/ru/electronicAppealLogin')
+        browser.get(f'{config.POLICE_URL}/ru/electronicAppealLogin')
 
         email_field = self._get_element_by_id("email", browser)
         self.make_visible(email_field, browser)

@@ -129,3 +129,5 @@ BROWSER_PORT = getenv("BROWSER_PORT", "4444")
 BROWSER_URL = f'http://{BROWSER_HOST}:{BROWSER_PORT}/wd/hub'
 BROWSER_CAPABILITIES = get_browser_capabilities()
 BROWSER_MAX_WINDOWS = int(getenv("BROWSER_MAX_WINDOWS", "5"))
+
+POLICE_URL = getenv("POLICE_URL", "https://minsk.mvd.gov.by")
