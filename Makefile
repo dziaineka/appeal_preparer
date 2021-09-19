@@ -21,3 +21,13 @@ start_prod:
 
 stop_prod:
 	docker-compose -f env_docker/docker-compose-services.yml -f env_docker/docker-compose.yml down
+
+NAME   := skaborik/appeal_sender
+TAG    := $$(git describe --tags --abbrev=0)
+IMG    := ${NAME}:${TAG}
+
+build:
+	@docker build -t ${IMG} .
+
+push:
+	@docker push ${IMG}
